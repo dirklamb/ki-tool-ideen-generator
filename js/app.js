@@ -1,7 +1,7 @@
 'use strict';
 
 /* ==========================================================================
-   KI-Tool-Ideen-Generator — App-Logik
+   KI-Tool-Ideen-Generator — App-Logik (V2)
    Vollständig client-seitig, keine externen Aufrufe, keine Speicherung.
    ========================================================================== */
 
@@ -9,10 +9,10 @@
  * State
  * ---------------------------------------------------------------------- */
 
-const TOTAL_QUESTIONS = 7;
+const TOTAL_QUESTIONS = 6;
 
 const state = {
-  currentIndex: 0, // 0 = Start, 1-7 = Fragen, 8 = Loading, 9 = Ergebnisse
+  currentIndex: 0, // 0 = Start, 1-6 = Fragen, 7 = Bestätigung, 8 = Loading, 9 = Ergebnisse
   answers: {
     zielgruppe: '',
     problem: '',
@@ -21,8 +21,7 @@ const state = {
     expertise: '',
     methode: ''
   },
-  ideas: [],
-  selectedIdeaId: null
+  ideas: []
 };
 
 const SCREEN_ORDER = [
@@ -33,7 +32,7 @@ const SCREEN_ORDER = [
   'screen-q4',
   'screen-q5',
   'screen-q6',
-  'screen-q7',
+  'screen-confirm',
   'screen-loading',
   'screen-results'
 ];
@@ -127,6 +126,22 @@ function shortLabel(text, maxWords) {
   return stripTrailingPunct(words.slice(0, maxWords).join(' ')) + ' …';
 }
 
+/* Verhindert, dass ein gekürzter Name auf einer Präposition/einem Artikel
+   endet (z. B. "Eltern von" statt "Eltern"). */
+const TRAILING_STOPWORDS = new Set([
+  'von', 'für', 'zu', 'mit', 'bei', 'um', 'auf', 'in', 'an', 'aus',
+  'der', 'die', 'das', 'des', 'dem', 'den', 'und', 'oder', 'sich',
+  'ihr', 'ihre', 'ihrem', 'ihren', 'so', 'dass', 'wie', 'ein', 'eine'
+]);
+
+function trimTrailingStopwords(words) {
+  const out = words.slice();
+  while (out.length > 1 && TRAILING_STOPWORDS.has(out[out.length - 1].toLowerCase())) {
+    out.pop();
+  }
+  return out;
+}
+
 /* Für Tool-Namen: entfernt typische Einleitungsfloskeln, damit aus einem
    Antwortsatz ein produktartiger Name statt eines Satzfragments wird. */
 function nameLabel(text, maxWords) {
@@ -139,11 +154,12 @@ function nameLabel(text, maxWords) {
     /^für\s+/i
   ];
   fillers.forEach((re) => { t = t.replace(re, ''); });
+  t = t.replace(/^(ein|eine|einen|einem|einer|der|die|das|dem|den|des)\s+/i, '');
   t = t.trim();
   const commaIdx = t.indexOf(',');
   if (commaIdx > 0) t = t.slice(0, commaIdx);
-  const words = t.split(/\s+/).filter(Boolean).slice(0, maxWords).join(' ');
-  return capFirst(stripTrailingPunct(words));
+  const words = trimTrailingStopwords(t.split(/\s+/).filter(Boolean).slice(0, maxWords));
+  return capFirst(stripTrailingPunct(words.join(' ')));
 }
 
 function quote(text) {
@@ -203,6 +219,10 @@ function clampScore(n) {
   return Math.max(1, Math.min(10, n));
 }
 
+function formatScore(n) {
+  return n.toFixed(1).replace('.', ',');
+}
+
 /* ---------------------------------------------------------------------- *
  * Ideen-Generierung — regelbasierte "Blueprints"
  * Jeder Blueprint kombiniert eine Kategorie + ein interaktives Format
@@ -237,6 +257,11 @@ function buildIdeas(answers) {
     toolType: 'Typ-Analyse / Quiz',
     name: `Der ${nameLabel(zg, 3)}-Typ-Test`,
     hook: `In 2 Minuten zeigt sich, welcher Typ von „${lowerFirst(problemKurz)}“-Blockade Ihre Wunsch-Kunden gerade wirklich ausbremst.`,
+    ioLine: `Kurze Selbsteinschätzung zur aktuellen Situation → persönlicher Typ mit klarer Handlungsempfehlung`,
+    whyStrong: [
+      `Trifft direkt ${quote(problemKurz)}`,
+      `Erzeugt in unter 2 Minuten einen echten Aha-Moment`
+    ],
     inputs: [
       `Kurze Selbsteinschätzung zur aktuellen Situation rund um „${lowerFirst(problemKurz)}“`,
       `Antworten zu typischen Gedanken- und Verhaltensmustern in diesem Bereich`,
@@ -256,6 +281,11 @@ function buildIdeas(answers) {
     toolType: 'Scorecard',
     name: `Der ${traumNameLabel(traum)}-Score`,
     hook: `Ein Zahlen-Check, der in Sekunden sichtbar macht, wie weit ${lowerFirst(zgKurz)} wirklich von „${lowerFirst(traumKurz)}“ entfernt sind.`,
+    ioLine: `5–8 kurze Einschätzungsfragen → Score von 0–100 mit der größten Lücke zum Ziel`,
+    whyStrong: [
+      `Macht eine unklare Ausgangslage in einer Zahl sichtbar`,
+      `Wirkt fachlich fundiert statt beliebig`
+    ],
     inputs: [
       `5–8 kurze Einschätzungsfragen rund um „${lowerFirst(problemKurz)}“`,
       `Aktueller Stand in Bezug auf „${lowerFirst(traumKurz)}“`,
@@ -276,6 +306,11 @@ function buildIdeas(answers) {
     toolType: 'Rechner + Roadmap',
     name: `Der ${nameLabel(zg, 3)}-Fahrplan-Rechner`,
     hook: `Ein persönlicher Fahrplan, der genau zeigt, wie ${lowerFirst(zgKurz)} von „${lowerFirst(problemKurz)}“ zu „${lowerFirst(traumKurz)}“ kommen${preisZahl ? `, inklusive konkreter Zahlen` : ''}.`,
+    ioLine: `Aktueller Stand & Wunsch-Zeitpunkt → persönliche Schritt-für-Schritt-Roadmap`,
+    whyStrong: [
+      `Macht „${traumKurz}“ konkret planbar`,
+      `Nutzt reale Zahlen statt vager Versprechen`
+    ],
     inputs: [
       `Aktueller Status quo (z. B. Zeit, Kunden oder Umsatz aktuell)`,
       `Wunsch-Zeitpunkt, bis wann „${lowerFirst(traumKurz)}“ erreicht sein soll`,
@@ -295,6 +330,11 @@ function buildIdeas(answers) {
     toolType: 'Mini-Coaching-Simulator / Entscheidungshilfe',
     name: `Der ${nameLabel(methode, 3)}-Mini-Coach`,
     hook: `Eine Mini-Coaching-Session zum Ausprobieren, die live nach Ihrer eigenen Methode reagiert – kein Standard-Chatbot.`,
+    ioLine: `Aktuelle Situation & bisherige Versuche → methodenbasierte Empfehlung wie in einer Mini-Session`,
+    whyStrong: [
+      `Basiert direkt auf Ihrer eigenen Methode`,
+      `Kaum durch einen Standard-Prompt ersetzbar`
+    ],
     inputs: [
       `Eine konkrete aktuelle Situation oder Entscheidung rund um „${lowerFirst(problemKurz)}“`,
       `Was bisher schon versucht wurde`,
@@ -314,6 +354,11 @@ function buildIdeas(answers) {
     toolType: 'Matcher / Passungs-Check',
     name: `Der „Passt ${angebotKurz} zu mir?“-Check`,
     hook: `In wenigen Klicks erfährt ${lowerFirst(zgKurz)}, ob „${angebotKurz}“ wirklich zur eigenen Situation passt – ehrlich und ohne Verkaufsdruck.`,
+    ioLine: `Situation & Wunschziel → ehrliche Passungs-Aussage zum Angebot`,
+    whyStrong: [
+      `Senkt Kaufzweifel durch eine ehrliche Einschätzung`,
+      `Führt bei Passung direkt zum Angebot`
+    ],
     inputs: [
       `Aktuelle Situation in Bezug auf „${lowerFirst(problemKurz)}“`,
       `Gewünschtes Ergebnis: „${lowerFirst(traumKurz)}“`,
@@ -341,14 +386,14 @@ function buildIdeas(answers) {
       scores[key] = clampScore(val);
     });
 
-    const gesamt = clampScore(Math.round(
+    const gesamt = clampScore(
       scores.wow * 0.2 +
       scores.habenwollen * 0.15 +
       scores.individualisierung * 0.15 +
       scores.einzigartigkeit * 0.15 +
       scores.kaufsog * 0.2 +
       scores.umsetzung * 0.15
-    ));
+    );
     scores.gesamt = gesamt;
 
     return {
@@ -357,6 +402,8 @@ function buildIdeas(answers) {
       toolType: bp.toolType,
       name: bp.name,
       hook: bp.hook,
+      ioLine: bp.ioLine,
+      whyStrong: bp.whyStrong,
       inputs: bp.inputs,
       output: bp.output,
       wow: bp.wow,
@@ -389,32 +436,106 @@ function buildIdeas(answers) {
 function buildWinReasons(idea, ctx) {
   const pool = {
     'typ-test': [
-      `Trifft direkt das drängendste Problem: ${quote(ctx.problemKurz)}`,
-      `Erzeugt in unter 2 Minuten einen persönlichen Aha-Moment`,
-      `Führt jedes Ergebnis natürlich zu „${ctx.angebotKurz}“${ctx.preis ? ` (${ctx.preis})` : ''}`
+      `Trifft direkt das drängendste Problem`,
+      `Erzeugt in unter 2 Minuten einen Aha-Moment`,
+      `Führt direkt zu „${ctx.angebotKurz}“${ctx.preis ? ` (${ctx.preis})` : ''}`
     ],
     'scorecard': [
-      `Macht eine unklare Ausgangslage in einer einzigen Zahl greifbar`,
-      `Baut auf Ihrer fachlichen Bewertung auf statt auf Standard-Fragen`,
+      `Macht eine unklare Lage in einer Zahl greifbar`,
+      `Baut auf Ihrer fachlichen Bewertung auf`,
       `Zeigt konkret die Lücke zu „${ctx.traumKurz}“`
     ],
     'roadmap-rechner': [
-      `Verwandelt „${ctx.traumKurz}“ in einen konkreten, planbaren Weg`,
+      `Verwandelt „${ctx.traumKurz}“ in einen planbaren Weg`,
       `Nutzt reale Zahlen statt vager Versprechen`,
-      `Endet exakt an dem Punkt, an dem „${ctx.angebotKurz}“ ansetzt`
+      `Endet exakt dort, wo „${ctx.angebotKurz}“ ansetzt`
     ],
     'coach-simulator': [
-      `Basiert direkt auf Ihrer eigenen Methode: ${quote(ctx.methodeKurz)}`,
-      `Lässt sich kaum durch einen Standard-ChatGPT-Prompt ersetzen`,
-      `Fühlt sich an wie eine echte Mini-Session mit Ihnen persönlich`
+      `Basiert direkt auf Ihrer eigenen Methode`,
+      `Kaum durch einen Standard-Prompt ersetzbar`,
+      `Fühlt sich an wie eine echte Mini-Session`
     ],
     'matcher': [
-      `Senkt Kaufzweifel durch eine ehrlich wirkende, persönliche Einschätzung`,
-      `Führt bei Passung direkt und reibungslos zu „${ctx.angebotKurz}“${ctx.preis ? ` (${ctx.preis})` : ''}`,
-      `Ist in wenigen Minuten umsetzbar und sofort startklar`
+      `Senkt Kaufzweifel durch Ehrlichkeit`,
+      `Führt bei Passung direkt zu „${ctx.angebotKurz}“`,
+      `In wenigen Minuten umsetzbar`
     ]
   };
   return pool[idea.id] || [];
+}
+
+/* ---------------------------------------------------------------------- *
+ * Claude-Code-Bauprompt je Idee
+ * ---------------------------------------------------------------------- */
+
+function auswertungslogikText(ideaId, answers) {
+  switch (ideaId) {
+    case 'typ-test':
+      return `Werte die Eingaben zu genau EINEM von 3 bis 4 klar unterscheidbaren Typen aus (z. B. anhand von Punkten pro Antwortmuster). Jeder Typ braucht: einen einprägsamen Namen, eine kurze Beschreibung der Situation, die typische Ursache und eine konkrete Handlungsempfehlung. Nutze einfache Regeln (Punkte pro Antwortoption zählen, Typ mit den meisten Punkten auswählen) – keine externe KI-Anbindung nötig.`;
+    case 'scorecard':
+      return `Berechne aus den Einschätzungsfragen einen Score von 0 bis 100 (Punkte je Antwort addieren und auf 100 normieren). Definiere 3 Ampel-Stufen (z. B. 0–40 kritisch, 41–70 ausbaufähig, 71–100 stark) und identifiziere anhand der schwächsten Einzelantwort die größte Lücke zum gewünschten Ergebnis.`;
+    case 'roadmap-rechner':
+      return `Berechne aus Status quo und Wunsch-Zeitpunkt 3 bis 4 konkrete Meilensteine (z. B. gleichmäßig über die verfügbare Zeit verteilt). Leite pro Meilenstein eine kurze, konkrete Aktion ab, die zum größten aktuellen Hindernis passt.`;
+    case 'coach-simulator':
+      return `Werte die geschilderte Situation nach der eigenen Methode aus: ${quote(answers.methode)}. Definiere dafür 3 bis 4 typische Situations-Muster mit je einer passenden Empfehlung im Sinne dieser Methode – keine allgemeinen Coaching-Floskeln, sondern erkennbar an der beschriebenen Methode orientiert.`;
+    case 'matcher':
+      return `Bewerte die Passung anhand einfacher Regeln (z. B. Punkte für Dringlichkeit, Zielklarheit und Veränderungsbereitschaft). Definiere 3 Ergebnis-Stufen: starke Passung, teilweise Passung, noch nicht der richtige Zeitpunkt – jeweils mit einer ehrlichen, nachvollziehbaren Begründung.`;
+    default:
+      return `Werte die Nutzereingaben mit einfachen, nachvollziehbaren Regeln aus und leite daraus ein persönliches Ergebnis ab.`;
+  }
+}
+
+function buildClaudeCodePrompt(idea, answers) {
+  const logic = auswertungslogikText(idea.id, answers);
+
+  return `AUFGABE
+Baue ein eigenständiges, vollständig funktionierendes KI-Tool namens „${idea.name}“ (Tool-Typ: ${idea.toolType}, Kategorie: ${idea.category}).
+
+ZIEL & NUTZEN DES TOOLS
+${idea.hook}
+${idea.output}
+
+ZIELGRUPPE
+${answers.zielgruppe}
+
+BENÖTIGTE NUTZEREINGABEN
+${idea.inputs.map((i) => `- ${i}`).join('\n')}
+
+AUSWERTUNGSLOGIK
+${logic}
+
+GEWÜNSCHTE ERGEBNIS-AUSGABE
+${idea.output}
+Zusätzlicher WOW-/Aha-Moment: ${idea.wow}
+
+DESIGN-ANFORDERUNGEN
+- Helle Premium-Optik: großzügige Weißräume, klare runde Karten, moderne Buttons
+- Gold ausschließlich als Hauptakzentfarbe für die wichtigste Aktion je Bildschirm
+- Dunkles Blau/Grün für Überschriften, Struktur und sekundäre Buttons
+- Gut lesbare, ausreichend große Schrift für eine Zielgruppe 45+
+- Kein technischer Entwickler-Look, keine Fachbegriffe in der Nutzer-Ansicht
+
+MOBILE OPTIMIERUNG
+- Vollständig responsive für Smartphone (ab ca. 360 px Breite) und Desktop
+- Ausreichend große Touch-Ziele für Buttons und Eingabefelder
+- Keine horizontalen Scrollbalken, Inhalte brechen sauber um
+
+GITHUB-PAGES-TAUGLICHKEIT
+- Reines HTML, CSS und JavaScript ohne Build-Schritt, ohne Server, ohne externe API-Aufrufe
+- index.html liegt im Wurzelverzeichnis und funktioniert direkt über GitHub Pages
+- Keine Anmeldung, keine Datenbank, keine Speicherung personenbezogener Daten außerhalb des Browsers
+
+TESTANFORDERUNGEN
+- Prüfe alle Eingabefelder inkl. Validierung bei leeren oder zu kurzen Eingaben
+- Teste die Auswertungslogik mit mindestens 3 unterschiedlichen Eingabe-Kombinationen und prüfe, ob sich die Ergebnisse spürbar unterscheiden
+- Teste die mobile Darstellung (z. B. 375 px Breite) und die Desktop-Darstellung
+- Stelle sicher, dass jeder Button funktioniert und es keine Platzhalter oder toten Elemente gibt
+
+CTA / ÜBERGANG ZUM HAUPT-ANGEBOT
+${idea.leadsToOffer}
+Haupt-Angebot: „${answers.angebot}“
+
+Wenn etwas nicht rund läuft, korrigiere es eigenständig, bevor du fertig bist.`;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -427,124 +548,130 @@ const SCORE_LABELS = {
   individualisierung: 'Individualisierung',
   einzigartigkeit: 'Einzigartigkeit',
   kaufsog: 'Kauf-Sog',
-  umsetzung: 'Umsetzungs-Einfachheit',
-  gesamt: 'Gesamt-Potenzial'
+  umsetzung: 'Umsetzungs-Einfachheit'
 };
 
 function renderScoreGrid(scores) {
-  const order = ['wow', 'habenwollen', 'individualisierung', 'einzigartigkeit', 'kaufsog', 'umsetzung', 'gesamt'];
+  const order = ['wow', 'habenwollen', 'individualisierung', 'einzigartigkeit', 'kaufsog', 'umsetzung'];
   return `<div class="score-grid">${order.map((key) => `
-    <div class="score-item ${key === 'gesamt' ? 'total' : ''}">
+    <div class="score-item">
       <div class="score-label-row"><span>${SCORE_LABELS[key]}</span><strong>${scores[key]}/10</strong></div>
       <div class="score-bar"><div class="score-bar-fill" style="width:${scores[key] * 10}%"></div></div>
     </div>`).join('')}</div>`;
 }
 
 function renderIdeaCard(idea) {
-  const winBlock = idea.isTop ? `
+  const topBadge = idea.isTop ? '<div class="top-badge">🏆 MEINE TOP-EMPFEHLUNG</div>' : '';
+  const winBox = idea.isTop ? `
     <div class="win-reasons">
-      <h4>Warum diese Idee gewinnen kann</h4>
+      <h4>Warum diese Idee gewinnt</h4>
       <ul>${idea.winReasons.map((r) => `<li>${r}</li>`).join('')}</ul>
     </div>` : '';
 
+  const [ioIn, ioOut] = idea.ioLine.split('→').map((s) => s.trim());
+
   return `
-  <article class="idea-card ${idea.isTop ? 'top' : ''}">
-    ${idea.isTop ? '<div class="top-badge">🏆 TOP-EMPFEHLUNG</div>' : ''}
-    <div class="idea-card-head">
-      <div>
-        <span class="idea-category">${idea.category}</span>
-        <h3 class="idea-name">${idea.name}</h3>
-      </div>
-    </div>
+  <article class="idea-card ${idea.isTop ? 'top' : ''}" data-idea-id="${idea.id}">
+    ${topBadge}
+    <span class="idea-category">${idea.category}</span>
+    <h3 class="idea-name">${idea.name}</h3>
     <p class="idea-hook">${idea.hook}</p>
-    <dl class="idea-fields">
-      <div class="idea-field">
-        <dt>Was der Kunde eingibt</dt>
-        <dd><ul>${idea.inputs.map((i) => `<li>${i}</li>`).join('')}</ul></dd>
-      </div>
-      <div class="idea-field">
-        <dt>Was er individuell herausbekommt</dt>
-        <dd>${idea.output}</dd>
-      </div>
-      <div class="idea-field">
-        <dt>Der persönliche WOW-/Aha-Moment</dt>
-        <dd>${idea.wow}</dd>
-      </div>
-      <div class="idea-field">
-        <dt>Warum dieses Tool zu Ihrer Expertise passt</dt>
-        <dd>${idea.expertiseFit}</dd>
-      </div>
-      <div class="idea-field">
-        <dt>Wie es zu Ihrem Haupt-Angebot führt</dt>
-        <dd>${idea.leadsToOffer}</dd>
-      </div>
-    </dl>
-    ${winBlock}
-    <p class="idea-type-line">Empfohlener Tool-Typ: <strong>${idea.toolType}</strong></p>
-    ${renderScoreGrid(idea.scores)}
-  </article>`;
-}
-
-function renderSelectionCards(ideas) {
-  return ideas.map((idea) => `
-    <button class="selection-card" type="button" data-idea-id="${idea.id}">
-      ${idea.isTop ? '<span class="sel-star">🏆</span>' : ''}${idea.name}
-    </button>`).join('');
-}
-
-function renderConceptSummary(idea) {
-  return `
-    <h3>Konzept-Zusammenfassung: ${idea.name}</h3>
-    <dl>
-      <div><dt>Tool-Ziel</dt><dd>${idea.hook}</dd></div>
-      <div><dt>Zielgruppe</dt><dd>${idea.zielgruppe}</dd></div>
-      <div><dt>Benötigte Nutzer-Eingaben</dt><dd><ul>${idea.inputs.map((i) => `<li>${i}</li>`).join('')}</ul></dd></div>
-      <div><dt>Ergebnis</dt><dd>${idea.output}</dd></div>
-      <div><dt>WOW-Moment</dt><dd>${idea.wow}</dd></div>
-      <div><dt>Übergang zum Haupt-Angebot</dt><dd>${idea.leadsToOffer}</dd></div>
-    </dl>
-    <div class="concept-cta">
-      <button class="btn btn-primary btn-large" id="btnBuildIdea" type="button">Diese Idee will ich bauen</button>
+    ${winBox}
+    <p class="io-line"><span>${ioIn}</span><span class="io-arrow">→</span><span>${ioOut}</span></p>
+    <div class="why-strong">
+      <h4>Warum stark</h4>
+      <ul>${idea.whyStrong.map((r) => `<li>${r}</li>`).join('')}</ul>
     </div>
-    <p class="confirmation-note" id="buildConfirmation" hidden>Großartige Wahl! Notieren Sie sich „${idea.name}“ als Ihr nächstes Projekt – das ist Ihr Startpunkt.</p>
-  `;
+    <div class="potential-row">
+      <span class="potential-label">Gesamt-Potenzial</span>
+      <span class="potential-value">${formatScore(idea.scores.gesamt)}/10</span>
+    </div>
+    <div class="card-actions">
+      <button class="details-toggle" type="button" data-details-toggle aria-expanded="false">
+        <span class="toggle-label">Details anzeigen</span><span class="chevron">▾</span>
+      </button>
+      <button class="btn btn-primary" type="button" data-open-prompt>Fertigen Claude-Code-Prompt anzeigen</button>
+    </div>
+    <div class="idea-details" data-details>
+      <dl class="idea-fields">
+        <div class="idea-field"><dt>WOW-/Aha-Moment</dt><dd>${idea.wow}</dd></div>
+        <div class="idea-field"><dt>Warum zur Expertise passend</dt><dd>${idea.expertiseFit}</dd></div>
+        <div class="idea-field"><dt>Übergang ins Haupt-Angebot</dt><dd>${idea.leadsToOffer}</dd></div>
+      </dl>
+      <p class="detail-scores-label">Detail-Bewertung</p>
+      ${renderScoreGrid(idea.scores)}
+    </div>
+  </article>`;
 }
 
 function renderResults() {
   const cardsEl = document.getElementById('ideaCards');
   cardsEl.innerHTML = state.ideas.map(renderIdeaCard).join('');
 
-  const selEl = document.getElementById('selectionCards');
-  selEl.innerHTML = renderSelectionCards(state.ideas);
+  cardsEl.querySelectorAll('[data-details-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.idea-card');
+      const details = card.querySelector('[data-details]');
+      const isOpen = details.classList.toggle('open');
+      btn.setAttribute('aria-expanded', String(isOpen));
+      btn.querySelector('.toggle-label').textContent = isOpen ? 'Details verbergen' : 'Details anzeigen';
+    });
+  });
 
-  const summaryEl = document.getElementById('conceptSummary');
-  summaryEl.hidden = true;
-  summaryEl.innerHTML = '';
-  state.selectedIdeaId = null;
-
-  selEl.querySelectorAll('.selection-card').forEach((btn) => {
-    btn.addEventListener('click', () => selectIdea(btn.dataset.ideaId));
+  cardsEl.querySelectorAll('[data-open-prompt]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.idea-card');
+      openPromptModal(card.dataset.ideaId);
+    });
   });
 }
 
-function selectIdea(ideaId) {
-  state.selectedIdeaId = ideaId;
+/* ---------------------------------------------------------------------- *
+ * Modal: Claude-Code-Bauprompt
+ * ---------------------------------------------------------------------- */
+
+function openPromptModal(ideaId) {
   const idea = state.ideas.find((i) => i.id === ideaId);
   if (!idea) return;
 
-  document.querySelectorAll('.selection-card').forEach((btn) => {
-    btn.classList.toggle('selected', btn.dataset.ideaId === ideaId);
-  });
+  document.getElementById('promptModalTitle').textContent = `Bau-Prompt: ${idea.name}`;
+  document.getElementById('copyFeedback').hidden = true;
+  document.getElementById('copyFeedback').textContent = '';
 
-  const summaryEl = document.getElementById('conceptSummary');
-  summaryEl.innerHTML = renderConceptSummary(idea);
-  summaryEl.hidden = false;
+  const textarea = document.getElementById('promptTextarea');
+  textarea.value = buildClaudeCodePrompt(idea, state.answers);
 
-  document.getElementById('btnBuildIdea').addEventListener('click', () => {
-    document.getElementById('buildConfirmation').hidden = false;
-  });
+  const modal = document.getElementById('promptModal');
+  modal.hidden = false;
+  document.body.classList.add('modal-open');
+  window.setTimeout(() => textarea.focus(), 50);
+}
 
-  summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function closePromptModal() {
+  document.getElementById('promptModal').hidden = true;
+  document.body.classList.remove('modal-open');
+}
+
+function markPrompt() {
+  const textarea = document.getElementById('promptTextarea');
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  const feedback = document.getElementById('copyFeedback');
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(textarea.value).then(() => {
+      feedback.textContent = '✓ In die Zwischenablage kopiert';
+      feedback.hidden = false;
+    }).catch(() => {
+      feedback.textContent = 'Text markiert – jetzt Strg+C bzw. Cmd+C drücken';
+      feedback.hidden = false;
+    });
+  } else {
+    feedback.textContent = 'Text markiert – jetzt Strg+C bzw. Cmd+C drücken';
+    feedback.hidden = false;
+  }
 }
 
 /* ---------------------------------------------------------------------- *
@@ -554,9 +681,9 @@ function selectIdea(ideaId) {
 function resetApp() {
   state.answers = { zielgruppe: '', problem: '', traum: '', angebot: '', expertise: '', methode: '' };
   state.ideas = [];
-  state.selectedIdeaId = null;
   document.querySelectorAll('.question-input').forEach((el) => { el.value = ''; });
   document.querySelectorAll('.field-error').forEach((el) => el.classList.remove('visible'));
+  closePromptModal();
   goTo('screen-start');
 }
 
@@ -573,7 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!validateAndStore(form)) return;
       const screen = form.closest('[data-screen]');
       const qNum = parseInt(screen.dataset.question, 10);
-      goTo(`screen-q${qNum + 1}`);
+      goTo(qNum < TOTAL_QUESTIONS ? `screen-q${qNum + 1}` : 'screen-confirm');
     });
   });
 
@@ -591,4 +718,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btnRestart').addEventListener('click', resetApp);
+
+  document.getElementById('btnCloseModal').addEventListener('click', closePromptModal);
+  document.getElementById('btnMarkPrompt').addEventListener('click', markPrompt);
+  document.getElementById('promptModal').addEventListener('click', (e) => {
+    if (e.target.id === 'promptModal') closePromptModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('promptModal').hidden) {
+      closePromptModal();
+    }
+  });
 });

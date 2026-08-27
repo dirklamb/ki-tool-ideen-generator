@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KI-Tool-Ideen-Generator – Entdecken Sie Ihre 5 besten KI-Tool-Ideen</title>
-<meta name="description" content="Entdecken Sie in wenigen Minuten 5 außergewöhnliche KI-Tool-Ideen, die Ihre Expertise erlebbar machen, Wunsch-Kunden begeistern und Lust auf mehr erzeugen.">
+<title>KI-Tool-Ideen-Generator – Ihre 5 stärksten KI-Tool-Ideen</title>
+<meta name="description" content="Entdecken Sie in wenigen Minuten 5 außergewöhnliche KI-Tool-Ideen, die zu Ihrem Business passen, Ihre Expertise erlebbar machen und Lust auf mehr erzeugen.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,12 +14,12 @@
 
 <div class="app-shell">
 
-  <!-- Progress Bar (nur während der Fragen sichtbar) -->
+  <!-- Progress Bar (nur während der 6 Fragen sichtbar) -->
   <div class="progress-wrap" id="progressWrap" hidden>
     <div class="progress-track">
       <div class="progress-fill" id="progressFill"></div>
     </div>
-    <p class="progress-label" id="progressLabel">Frage 1 von 7</p>
+    <p class="progress-label" id="progressLabel">Frage 1 von 6</p>
   </div>
 
   <main id="app">
@@ -28,16 +28,17 @@
     <section class="screen active" id="screen-start" data-screen>
       <div class="hero">
         <p class="eyebrow">Für Berater, Coaches, Heiler &amp; Experten</p>
-        <h1 class="hero-headline">Welche KI-Tools könnten Ihre&nbsp;Wunsch-Kunden lieben?</h1>
-        <p class="hero-subline">Entdecken Sie in wenigen Minuten 5 außergewöhnliche KI-Tool-Ideen, die Ihre Expertise erlebbar machen, Wunsch-Kunden begeistern und Lust auf mehr erzeugen.</p>
-        <button class="btn btn-primary btn-large" id="btnStart" type="button">Meine KI-Tool-Ideen entdecken</button>
+        <h1 class="hero-headline">Welche KI-Tools würden Ihre Wunsch-Kunden SOFORT ausprobieren?</h1>
+        <p class="hero-subline">Entdecken Sie in wenigen Minuten 5 außergewöhnliche KI-Tool-Ideen, die zu Ihrem Business passen, Ihre Expertise erlebbar machen und Lust auf mehr erzeugen.</p>
+        <button class="btn btn-primary btn-large" id="btnStart" type="button">Meine 5 stärksten KI-Tool-Ideen entdecken</button>
+        <p class="hero-tagline">Individuell aus Ihrer Zielgruppe, Expertise und Ihrem Angebot entwickelt.</p>
         <p class="hero-hint">Dauert ca. 4–6 Minuten · Keine Anmeldung · Ihre Angaben bleiben in Ihrem Browser</p>
       </div>
 
       <div class="hero-cards" aria-hidden="true">
         <div class="mini-card">🔍 Diagnose</div>
         <div class="mini-card">🧭 Strategie</div>
-        <div class="mini-card">✨ Generator</div>
+        <div class="mini-card">✨ Analyse</div>
         <div class="mini-card">🤝 Matcher</div>
         <div class="mini-card">🎯 Coach</div>
       </div>
@@ -48,11 +49,11 @@
       <form class="question-form" data-form>
         <h2 class="question-title">Für wen möchten Sie Ihr KI-Tool bauen?</h2>
         <p class="question-hint">Beschreiben Sie Ihre Wunsch-Kunden so konkret wie möglich.</p>
-        <textarea class="question-input" name="zielgruppe" rows="4" placeholder="z. B. Spirituelle Coaches 45+, die mehr Premium-Kunden gewinnen wollen." required></textarea>
-        <p class="question-example">Beispiel: „Spirituelle Coaches 45+, die mehr Premium-Kunden gewinnen wollen.“</p>
+        <textarea class="question-input" name="zielgruppe" rows="4" placeholder="z. B. Berufstätige Eltern von Kindern im Kita-Alter, die abends oft gestresst und überfordert sind." required></textarea>
+        <p class="question-example">Beispiel: „Berufstätige Eltern von Kindern im Kita-Alter, die abends oft gestresst und überfordert sind.“</p>
         <p class="field-error" data-error></p>
         <div class="question-actions">
-          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-secondary" type="button" data-back>Zurück</button>
           <button class="btn btn-primary" type="submit">Weiter</button>
         </div>
       </form>
@@ -63,11 +64,11 @@
       <form class="question-form" data-form>
         <h2 class="question-title">Welches konkrete Problem beschäftigt Ihre Wunsch-Kunden aktuell besonders stark?</h2>
         <p class="question-hint">Was frustriert sie im Alltag am meisten?</p>
-        <textarea class="question-input" name="problem" rows="4" placeholder="z. B. Sie posten regelmäßig, bekommen aber kaum kaufbereite Anfragen." required></textarea>
-        <p class="question-example">Beispiel: „Sie posten regelmäßig, bekommen aber kaum kaufbereite Anfragen.“</p>
+        <textarea class="question-input" name="problem" rows="4" placeholder="z. B. Sie probieren ständig neue Diäten aus, wissen aber nie, welcher Ernährungstyp wirklich zu ihnen passt." required></textarea>
+        <p class="question-example">Beispiel: „Sie probieren ständig neue Diäten aus, wissen aber nie, welcher Ernährungstyp wirklich zu ihnen passt.“</p>
         <p class="field-error" data-error></p>
         <div class="question-actions">
-          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-secondary" type="button" data-back>Zurück</button>
           <button class="btn btn-primary" type="submit">Weiter</button>
         </div>
       </form>
@@ -78,11 +79,11 @@
       <form class="question-form" data-form>
         <h2 class="question-title">Was möchten Ihre Wunsch-Kunden stattdessen unbedingt erreichen?</h2>
         <p class="question-hint">Beschreiben Sie das Traum-Ergebnis Ihrer Kunden.</p>
-        <textarea class="question-input" name="traum" rows="4" placeholder="z. B. Sie wollen planbar 10.000 €+ Monatsumsatz mit passenden Premium-Kunden." required></textarea>
-        <p class="question-example">Beispiel: „Sie wollen planbar 10.000 €+ Monatsumsatz mit passenden Premium-Kunden.“</p>
+        <textarea class="question-input" name="traum" rows="4" placeholder="z. B. Sie wollen als neue Führungskraft souverän auftreten und von ihrem Team von Anfang an ernst genommen werden." required></textarea>
+        <p class="question-example">Beispiel: „Sie wollen als neue Führungskraft souverän auftreten und von ihrem Team von Anfang an ernst genommen werden.“</p>
         <p class="field-error" data-error></p>
         <div class="question-actions">
-          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-secondary" type="button" data-back>Zurück</button>
           <button class="btn btn-primary" type="submit">Weiter</button>
         </div>
       </form>
@@ -93,11 +94,11 @@
       <form class="question-form" data-form>
         <h2 class="question-title">Welches Angebot soll Ihr KI-Tool idealerweise vorbereiten oder verkaufen?</h2>
         <p class="question-hint">Nennen Sie Ihr Haupt-Angebot – gerne mit Preis.</p>
-        <textarea class="question-input" name="angebot" rows="4" placeholder="z. B. 90-Tage-Business-Coaching für 7.000 €." required></textarea>
-        <p class="question-example">Beispiel: „90-Tage-Business-Coaching für 7.000 €.“</p>
+        <textarea class="question-input" name="angebot" rows="4" placeholder="z. B. 8-Wochen-Paarcoaching für 2.400 €." required></textarea>
+        <p class="question-example">Beispiel: „8-Wochen-Paarcoaching für 2.400 €.“</p>
         <p class="field-error" data-error></p>
         <div class="question-actions">
-          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-secondary" type="button" data-back>Zurück</button>
           <button class="btn btn-primary" type="submit">Weiter</button>
         </div>
       </form>
@@ -108,11 +109,11 @@
       <form class="question-form" data-form>
         <h2 class="question-title">Wofür sind Sie besonders gut, bekannt oder anders als andere Anbieter?</h2>
         <p class="question-hint">Was macht Sie einzigartig in Ihrem Markt?</p>
-        <textarea class="question-input" name="expertise" rows="4" placeholder="z. B. Ich verbinde Business-Strategie, KI und spirituelle Identitätsarbeit." required></textarea>
-        <p class="question-example">Beispiel: „Ich verbinde Business-Strategie, KI und spirituelle Identitätsarbeit.“</p>
+        <textarea class="question-input" name="expertise" rows="4" placeholder="z. B. Ich verbinde 15 Jahre Erfahrung als Heilerin mit einem klaren, alltagstauglichen Schritt-für-Schritt-Prozess." required></textarea>
+        <p class="question-example">Beispiel: „Ich verbinde 15 Jahre Erfahrung als Heilerin mit einem klaren, alltagstauglichen Schritt-für-Schritt-Prozess.“</p>
         <p class="field-error" data-error></p>
         <div class="question-actions">
-          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-secondary" type="button" data-back>Zurück</button>
           <button class="btn btn-primary" type="submit">Weiter</button>
         </div>
       </form>
@@ -123,26 +124,25 @@
       <form class="question-form" data-form>
         <h2 class="question-title">Welche eigenen Methoden, Modelle, Tests, Prozesse oder Erfahrungen könnten in Ihr Tool einfließen?</h2>
         <p class="question-hint">Das ist Ihr wichtigstes Unterscheidungsmerkmal – je konkreter, desto stärker die Ideen.</p>
-        <textarea class="question-input" name="methode" rows="4" placeholder="z. B. Meine Methode verbindet Soul-Autorität, Premium-Angebot und KI-Kunden-System." required></textarea>
-        <p class="question-example">Beispiel: „Meine Methode verbindet Soul-Autorität, Premium-Angebot und KI-Kunden-System.“</p>
+        <textarea class="question-input" name="methode" rows="4" placeholder="z. B. Meine Methode kombiniert einen Persönlichkeits-Check, ein 3-Phasen-Modell und wöchentliche Reflexionsfragen." required></textarea>
+        <p class="question-example">Beispiel: „Meine Methode kombiniert einen Persönlichkeits-Check, ein 3-Phasen-Modell und wöchentliche Reflexionsfragen.“</p>
         <p class="field-error" data-error></p>
         <div class="question-actions">
-          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-secondary" type="button" data-back>Zurück</button>
           <button class="btn btn-primary" type="submit">Weiter</button>
         </div>
       </form>
     </section>
 
-    <!-- ============ FRAGE 7 – BESTÄTIGUNG ============ -->
-    <section class="screen" id="screen-q7" data-screen data-question="7">
+    <!-- ============ BESTÄTIGUNG (nach Frage 6) ============ -->
+    <section class="screen" id="screen-confirm" data-screen>
       <div class="confirm-box">
         <div class="confirm-icon">✨</div>
         <h2 class="question-title">Perfekt.</h2>
-        <p class="confirm-text">Wir suchen jetzt 5 Ideen, bei denen Sie sofort denken:<br>
-        <strong>„WOW, die passen wirklich zu meinem Business. Eine davon will und kann ich sofort bauen!“</strong></p>
+        <p class="confirm-text">Ich suche jetzt 5 außergewöhnliche KI-Tool-Ideen, die wirklich zu Ihrem Business, Ihrer Expertise und Ihrem Angebot passen.</p>
         <div class="question-actions confirm-actions">
-          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
-          <button class="btn btn-primary btn-large" id="btnGenerate" type="button">Meine 5 besten Ideen erstellen</button>
+          <button class="btn btn-secondary" type="button" data-back>Zurück</button>
+          <button class="btn btn-primary btn-large" id="btnGenerate" type="button">Meine 5 stärksten Ideen erstellen</button>
         </div>
       </div>
     </section>
@@ -165,15 +165,8 @@
 
       <div class="idea-cards" id="ideaCards"></div>
 
-      <div class="selection-block">
-        <h2 class="selection-headline">Welche Idee wollen Sie jetzt bauen?</h2>
-        <p class="selection-hint">Wählen Sie eine Idee aus, um die kompakte Konzept-Zusammenfassung zu sehen.</p>
-        <div class="selection-cards" id="selectionCards"></div>
-        <div class="concept-summary" id="conceptSummary" hidden></div>
-      </div>
-
       <div class="restart-block">
-        <button class="btn btn-ghost" id="btnRestart" type="button">Neue Angaben machen &amp; neu starten</button>
+        <button class="btn btn-secondary" id="btnRestart" type="button">Neue Angaben machen &amp; neu starten</button>
       </div>
     </section>
 
@@ -183,6 +176,20 @@
     <p>KI-Tool-Ideen-Generator · Ihre Angaben werden ausschließlich lokal in Ihrem Browser verarbeitet und nicht extern gespeichert.</p>
   </footer>
 
+</div>
+
+<!-- ============ MODAL: Claude-Code-Bauprompt ============ -->
+<div class="modal-overlay" id="promptModal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="promptModalTitle">
+    <button class="modal-close" id="btnCloseModal" type="button" aria-label="Schließen">×</button>
+    <h3 id="promptModalTitle">Claude-Code-Bauprompt</h3>
+    <p class="modal-subtitle" id="promptModalSubtitle">Kopieren Sie den kompletten Text und fügen Sie ihn direkt in Claude Code ein.</p>
+    <textarea class="prompt-textarea" id="promptTextarea" readonly spellcheck="false"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btnMarkPrompt" type="button">Prompt markieren</button>
+      <span class="copy-feedback" id="copyFeedback" hidden></span>
+    </div>
+  </div>
 </div>
 
 <script src="js/app.js"></script>
