@@ -1,22 +1,31 @@
 'use strict';
 
 /* ==========================================================================
-   KI-Tool-Ideen-Generator — App-Logik (V4)
+   KI-Tool-Ideen-Generator — App-Logik (V5)
    Vollständig client-seitig, keine externen Aufrufe, keine Speicherung.
 
-   V4-Hinweis zur "Zielgruppen-Analyse vor der Ideen-Generierung" und zur
-   "internen 3-fach-Optimierung": Die App enthält keine Laufzeit-KI, kann
-   also keine generativen Entwürfe verwerfen und neu erzeugen. Der ehrliche,
-   regelbasierte Ersatz: analyzeAudience() sammelt zuerst ALLE zutreffenden
-   Themen-Treffer aus Problem- und Traum-Antwort (siehe collectThemeMatches
-   und die priorisierte THEME_KEYWORDS-Liste, in der spezifische Alltags-
-   begriffe grundsätzlich vor generischen Wörtern wie "Konflikt" oder
-   "Vertrauen" geprüft werden) und verteilt sie gezielt auf die 5 Ideen,
-   statt denselben Begriff fünffach zu wiederholen. Jedes Text-Template
-   wurde beim Schreiben gegen die Qualitätskriterien (spezifisch, keine
-   Meta-Floskeln, keine Rohtext-Zitate) geprüft; lintIdea() prüft davon
-   automatisiert nach, was sich zur Laufzeit prüfen lässt (Meta-Floskeln,
-   "Der "-Namenspräfixe, Scores unter der 9,2-/9,6-Schwelle).
+   V4/V5-Hinweis zur "Zielgruppen-Analyse vor der Ideen-Generierung" und
+   zur "internen 3-fach-Optimierung": Die App enthält keine Laufzeit-KI,
+   kann also keine generativen Entwürfe verwerfen und neu erzeugen. Der
+   ehrliche, regelbasierte Ersatz: analyzeAudience() sammelt zuerst ALLE
+   zutreffenden Themen-Treffer aus Problem-, Traum- UND Zielgruppen-Antwort
+   (siehe collectThemeMatches und die priorisierte THEME_KEYWORDS-Liste,
+   in der spezifische Alltagsbegriffe grundsätzlich vor generischen
+   Wörtern wie "Konflikt", "Vertrauen" oder "Motivation" geprüft werden)
+   und verteilt sie über einen nach Spezifität sortierten Themen-Pool
+   gezielt auf die 5 Ideen. Ein generisches Tier-F-Wort wird für einen
+   Namen erst dann gezogen, wenn wirklich kein spezifischeres Thema mehr
+   irgendwo in den drei Antworten übrig ist (siehe take() in
+   analyzeAudience) — nicht schon, weil ein einzelnes Feld dünn ist.
+   V5 hat außerdem die festen Namens-Füllwörter entfernt ("Muster-Kompass"
+   → "Kompass", "Potenzial-Score" → "Score", "Fahrplan-Formel" →
+   "Fahrplan", "Bereitschafts-Check" → "Check"), weil ein immer gleiches
+   Füllwort im Namen selbst dann noch nach Schema wirkt, wenn das Thema
+   davor bereits spezifisch ist. Jedes Text-Template wurde beim Schreiben
+   gegen die Qualitätskriterien (spezifisch, keine Meta-Floskeln, keine
+   Rohtext-Zitate) geprüft; lintIdea() prüft davon automatisiert nach, was
+   sich zur Laufzeit prüfen lässt (Meta-Floskeln, "Der "-Namenspräfixe,
+   Scores unter der 9,2-/9,6-Schwelle).
    ========================================================================== */
 
 /* ---------------------------------------------------------------------- *
@@ -211,8 +220,15 @@ const THEME_KEYWORDS = [
   [/eltern.*kind.*streit|kind.*eltern.*streit|streit.*hausaufgabe/i, 'Eltern-Kind-Streit'],
   [/lerntyp|lern-typ/i, 'Lerntyp'],
   [/misserfolg|versagensangst/i, 'Versagensangst'],
+  [/lernmotivation|motivation.*lern|lern.*motivation/i, 'Lernmotivation'],
+  [/selbstständigkeit/i, 'Selbstständigkeit'],
 
   /* ---- Tier B: Beziehung/Partnerschaft — spezifische Begriffe vor Nähe. */
+  [/nähe.*distanz|distanz.*nähe/i, 'Nähe-Distanz-Muster'],
+  [/streitspirale/i, 'Streitspirale'],
+  [/entscheidungsunsicherheit|unsicher.*entscheidung|entscheidung.*unsicher/i, 'Entscheidungsunsicherheit'],
+  [/intimität/i, 'Intimität'],
+  [/beziehungsmuster/i, 'Beziehungsmuster'],
   [/verlassen|verlustangst/i, 'Verlustangst'],
   [/bindungsangst/i, 'Bindungsangst'],
   [/nähe/i, 'Nähe'],
@@ -224,6 +240,12 @@ const THEME_KEYWORDS = [
   [/geschrei|schreien|eskalier/i, 'Eskalation'],
 
   /* ---- Tier C: Führung/Team. */
+  [/mitarbeiter.*motivat|motivat.*mitarbeiter|mitarbeiter.*motivier|motivier.*mitarbeiter/i, 'Mitarbeitermotivation'],
+  [/führungswirkung/i, 'Führungswirkung'],
+  [/vertrauensverlust|vertrauen verloren|verlorenes vertrauen/i, 'Vertrauensverlust'],
+  [/teamdynamik/i, 'Teamdynamik'],
+  [/schwierige[ns]?\s*gespräch/i, 'Konfliktgespräche'],
+  [/überlast/i, 'Überlastung'],
   [/kontrolle|kontrollier/i, 'Kontrollverhalten'],
   [/eigenverantwortung/i, 'Eigenverantwortung'],
   [/delegier/i, 'Delegation'],
@@ -297,6 +319,17 @@ function extractTheme(text, fallback) {
   return capitalNounGuess(text) || fallback;
 }
 
+/* Position eines Themas in THEME_KEYWORDS = Spezifitäts-Rang (niedriger
+   ist spezifischer). Unbekannte Begriffe (freie Großschreib-Treffer)
+   landen ganz hinten und werden dadurch nur genutzt, wenn nichts aus dem
+   Wörterbuch übrig ist. */
+function themeTier(noun) {
+  for (let i = 0; i < THEME_KEYWORDS.length; i++) {
+    if (THEME_KEYWORDS[i][1] === noun) return i;
+  }
+  return THEME_KEYWORDS.length;
+}
+
 /* Sammelt ALLE passenden Themen einer Antwort (nicht nur das erste), damit
    verschiedene Ideen-Karten unterschiedliche, aber jeweils textlich
    begründete Blickwinkel auf dieselbe Zielgruppen-Antwort bekommen können,
@@ -363,22 +396,53 @@ function lintIdea(idea) {
 function analyzeAudience(answers) {
   const problemMatches = collectThemeMatches(answers.problem);
   const traumMatches = collectThemeMatches(answers.traum);
+  const zielgruppeMatches = collectThemeMatches(answers.zielgruppe);
 
   const problemFallback = capitalNounGuess(answers.problem) || 'Blockade';
   const traumFallback = capitalNounGuess(answers.traum) || 'Ziel';
 
-  const p1 = problemMatches[0] || problemFallback;
-  const p2 = problemMatches[1] || p1;
-  const p3 = problemMatches[2] || problemMatches[1] || p1;
-  const t1 = traumMatches[0] || traumFallback;
-  const t2 = traumMatches[1] || t1;
+  /* Gemeinsamer, nach Spezifität sortierter Themen-Pool aus allen drei
+     zielgruppen-nahen Antworten. Dient als Reserve, damit ein generisches
+     Tier-F-Wort (Konflikt/Vertrauen/Motivation) für einen Namen nur dann
+     gezogen wird, wenn wirklich nichts Spezifischeres irgendwo in den
+     Eingaben vorkommt — nicht schon, weil ein einzelnes Feld dünn ist. */
+  const pool = [];
+  problemMatches.concat(traumMatches, zielgruppeMatches).forEach((noun) => {
+    if (pool.indexOf(noun) === -1) pool.push(noun);
+  });
+  pool.sort((a, b) => themeTier(a) - themeTier(b));
+
+  const used = new Set();
+  function take(preferred) {
+    for (let i = 0; i < preferred.length; i++) {
+      if (preferred[i] && !used.has(preferred[i])) {
+        used.add(preferred[i]);
+        return preferred[i];
+      }
+    }
+    for (let i = 0; i < pool.length; i++) {
+      if (!used.has(pool[i])) {
+        used.add(pool[i]);
+        return pool[i];
+      }
+    }
+    const fallback = preferred.filter(Boolean)[0] || pool[0] || 'Ziel';
+    used.add(fallback);
+    return fallback;
+  }
+
+  const problemThema = take([problemMatches[0], problemFallback]);
+  const traumThema = take([traumMatches[0], traumFallback]);
+  const problemThemaAlt = take([problemMatches[1], problemMatches[0], problemFallback]);
+  const traumThemaAlt = take([traumMatches[1], traumMatches[0], traumFallback]);
+  const bereitThema = take([problemMatches[2], traumMatches[2], problemMatches[1], traumMatches[1]]);
 
   return {
-    problemThema: p1,
-    problemThemaAlt: p2,
-    traumThema: t1,
-    traumThemaAlt: t2,
-    bereitThema: p3 !== p1 ? p3 : (t2 !== t1 ? t2 : p1),
+    problemThema,
+    problemThemaAlt,
+    traumThema,
+    traumThemaAlt,
+    bereitThema,
     methodeThema: extractTheme(answers.methode, 'Ihrer Methode'),
     expertiseThema: extractTheme(answers.expertise, 'Ihrer Expertise')
   };
@@ -410,7 +474,7 @@ function buildIdeas(answers) {
     id: 'muster-kompass',
     category: 'Diagnose',
     toolType: 'Typ-Analyse / Muster-Test',
-    name: `${problemThema}-Muster-Kompass`,
+    name: `${problemThema}-Kompass`,
     subline: `In wenigen Minuten erkennt ${p.subjCap}, welches ${problemThema}-Muster hinter der aktuellen Situation steckt – und warum gute Vorsätze bisher nicht ausgereicht haben.`,
     ioLine: `6–8 gezielte Fragen zu ${problemThema} und typischen Reaktionsmustern → dominantes Muster + konkrete erste Veränderungs-Empfehlung`,
     inputs: [
@@ -439,7 +503,7 @@ function buildIdeas(answers) {
     id: 'potenzial-score',
     category: 'Analyse / Audit',
     toolType: 'Scorecard',
-    name: `${traumThema}-Potenzial-Score`,
+    name: `${traumThema}-Score`,
     subline: `In unter einer Minute berechnet ${p.subjCap} eine ehrliche Zahl dafür, wie nah ${p.subj === 'er' ? 'er' : 'sie'} ${traumThema} wirklich schon ist – und wo genau die größte Lücke liegt.`,
     ioLine: `6–8 Einschätzungsfragen zu ${traumThema} und aktueller Situation → Score von 0–100 + größte konkrete Lücke`,
     inputs: [
@@ -468,7 +532,7 @@ function buildIdeas(answers) {
     id: 'fahrplan-formel',
     category: 'Strategie',
     toolType: 'Rechner + Roadmap',
-    name: `${traumThemaAlt}-Fahrplan-Formel`,
+    name: `${traumThemaAlt}-Fahrplan`,
     subline: `${p.subjCap} erhält einen persönlichen Fahrplan mit 3 bis 4 Etappen, der zeigt, wie ${p.subj === 'er' ? 'er' : 'sie'} ${traumThemaAlt} Schritt für Schritt erreicht.`,
     ioLine: `Aktueller Stand + Wunsch-Zeitpunkt → persönliche Etappen-Roadmap mit je einer konkreten nächsten Handlung`,
     inputs: [
@@ -526,7 +590,7 @@ function buildIdeas(answers) {
     id: 'bereit-check',
     category: 'Matcher',
     toolType: 'Passungs-Check',
-    name: `${bereitThema}-Bereitschafts-Check`,
+    name: `${bereitThema}-Check`,
     subline: `${p.subjCap} bekommt in wenigen Klicks eine ehrliche Einschätzung, ob jetzt der richtige Zeitpunkt für ${angebotKurz} ist – ganz ohne Verkaufsdruck.`,
     ioLine: `Fragen zu Dringlichkeit bei ${problemThema}, Zielklarheit bei ${traumThema} und Veränderungsbereitschaft → klare Passungs-Aussage mit Begründung`,
     inputs: [
