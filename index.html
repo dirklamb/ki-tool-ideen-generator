@@ -14,8 +14,14 @@
 
 <div class="app-shell">
 
-  <!-- Top-Bar in CI-Blau — nur auf der Auswertungsseite sichtbar, bündig ganz oben -->
-  <div class="results-topline" id="resultsTopline" aria-hidden="true" hidden></div>
+  <!-- Blauer Hero-Header — nur auf der Auswertungsseite sichtbar, bündig ganz oben -->
+  <div class="results-hero" id="resultsTopline" aria-hidden="true" hidden>
+    <div class="results-hero-inner">
+      <p class="results-eyebrow">Ihre persönliche Auswertung</p>
+      <h2 class="results-hero-headline">Ihre 5 stärksten KI-Tool-Ideen</h2>
+      <p class="results-hero-subline">Speziell abgeleitet aus Ihrer Zielgruppe, Ihrem Angebot und Ihrer eigenen Methode.</p>
+    </div>
+  </div>
 
   <!-- Progress Bar (nur während der 6 Fragen sichtbar) -->
   <div class="progress-wrap" id="progressWrap" hidden>
@@ -160,12 +166,6 @@
 
     <!-- ============ ERGEBNISSE ============ -->
     <section class="screen" id="screen-results" data-screen>
-      <div class="results-header">
-        <p class="eyebrow">Ihre persönliche Auswertung</p>
-        <h2 class="results-headline">Ihre 5 stärksten KI-Tool-Ideen</h2>
-        <p class="results-subline">Speziell abgeleitet aus Ihrer Zielgruppe, Ihrem Angebot und Ihrer eigenen Methode.</p>
-      </div>
-
       <div class="idea-cards" id="ideaCards"></div>
 
       <div class="results-closing" id="resultsClosing"></div>

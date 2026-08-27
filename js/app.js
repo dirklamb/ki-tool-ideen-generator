@@ -1,17 +1,22 @@
 'use strict';
 
 /* ==========================================================================
-   KI-Tool-Ideen-Generator — App-Logik (V3)
+   KI-Tool-Ideen-Generator — App-Logik (V4)
    Vollständig client-seitig, keine externen Aufrufe, keine Speicherung.
 
-   V3-Hinweis zur "internen Qualitätsschleife": Die App enthält keine
-   Laufzeit-KI — die Texte sind fest formulierte, hochwertige Templates,
-   in Slots aber themen-spezifisch aus den Nutzerantworten gespeist (siehe
-   extractTheme). "3x intern prüfen" wird dadurch umgesetzt, dass (a) jedes
-   Template bereits beim Schreiben gegen die Qualitätskriterien geprüft
-   wurde und (b) lintIdea() vor der Anzeige automatisiert genau diese
-   Kriterien (keine Meta-Floskeln, keine Rohtext-Zitate, keine Scores unter
-   9,0) laufzeitseitig gegenprüft und warnt, falls doch etwas durchrutscht.
+   V4-Hinweis zur "Zielgruppen-Analyse vor der Ideen-Generierung" und zur
+   "internen 3-fach-Optimierung": Die App enthält keine Laufzeit-KI, kann
+   also keine generativen Entwürfe verwerfen und neu erzeugen. Der ehrliche,
+   regelbasierte Ersatz: analyzeAudience() sammelt zuerst ALLE zutreffenden
+   Themen-Treffer aus Problem- und Traum-Antwort (siehe collectThemeMatches
+   und die priorisierte THEME_KEYWORDS-Liste, in der spezifische Alltags-
+   begriffe grundsätzlich vor generischen Wörtern wie "Konflikt" oder
+   "Vertrauen" geprüft werden) und verteilt sie gezielt auf die 5 Ideen,
+   statt denselben Begriff fünffach zu wiederholen. Jedes Text-Template
+   wurde beim Schreiben gegen die Qualitätskriterien (spezifisch, keine
+   Meta-Floskeln, keine Rohtext-Zitate) geprüft; lintIdea() prüft davon
+   automatisiert nach, was sich zur Laufzeit prüfen lässt (Meta-Floskeln,
+   "Der "-Namenspräfixe, Scores unter der 9,2-/9,6-Schwelle).
    ========================================================================== */
 
 /* ---------------------------------------------------------------------- *
@@ -134,6 +139,7 @@ function angebotName(text) {
   }
   name = name.replace(/^(für|von|zu|ihr|mein)\s+/i, '');
   name = stripTrailingPeriod(name).replace(/\s?(?:für|zu)\s*$/i, '');
+  name = name.replace(/[,\s]+$/, '');
   return name || stripTrailingPeriod(text.trim());
 }
 
@@ -152,9 +158,9 @@ function seededJitter(seed) {
   return (frac - 0.5) * 0.3;
 }
 
-/* V3: alle Scores bewegen sich im Elite-Bereich 9,0–9,9 */
+/* V4: alle Scores bewegen sich im Elite-Bereich 9,2–9,9 */
 function clampScore9(n) {
-  return Math.max(9.0, Math.min(9.9, Math.round(n * 10) / 10));
+  return Math.max(9.2, Math.min(9.9, Math.round(n * 10) / 10));
 }
 
 function formatScore(n) {
@@ -188,17 +194,42 @@ const PRONOUNS = {
  * ---------------------------------------------------------------------- */
 
 const THEME_KEYWORDS = [
-  /* Emotional/psychologisch spezifische Begriffe zuerst — sie liefern die
-     stärkeren, konkreteren Tool-Namen und Sätze als strukturelle Begriffe. */
+  /* ---- Tier A: Eltern-/Kinder-/Lern-Coaching — sehr spezifische, oft
+     mehrteilige Alltagsbegriffe, die vor allen generelleren Mustern
+     geprüft werden, damit sie nicht auf ein Rand-Wort einbrechen. */
+  [/hausaufgabe/i, 'Hausaufgaben-Stress'],
+  [/lernfrust|frust.*(lernen|schule)|(lernen|schule).*frust/i, 'Lernfrust'],
+  [/lernblockade/i, 'Lernblockade'],
+  [/konzentration/i, 'Konzentrationsprobleme'],
+  [/lernstrategie/i, 'Lernstrategie'],
+  [/\bnoten?\b.*angst|angst.*\bnoten?\b|schlechte(n)?\s*note/i, 'Notenangst'],
+  [/prüfungsangst|angst.*prüfung/i, 'Prüfungsangst'],
+  [/schulstress|schule.*stress|stress.*schule/i, 'Schulstress'],
+  [/lernroutine/i, 'Lernroutine'],
+  [/(tränen|weinen).*(lernen|hausaufgabe)|(lernen|hausaufgabe).*(tränen|weinen)/i, 'Lerntränen'],
+  [/selbstständig.*lern|lern.*selbstständig/i, 'Lern-Selbstständigkeit'],
+  [/eltern.*kind.*streit|kind.*eltern.*streit|streit.*hausaufgabe/i, 'Eltern-Kind-Streit'],
+  [/lerntyp|lern-typ/i, 'Lerntyp'],
+  [/misserfolg|versagensangst/i, 'Versagensangst'],
+
+  /* ---- Tier B: Beziehung/Partnerschaft — spezifische Begriffe vor Nähe. */
+  [/verlassen|verlustangst/i, 'Verlustangst'],
+  [/bindungsangst/i, 'Bindungsangst'],
   [/nähe/i, 'Nähe'],
   [/rückzug/i, 'Rückzug'],
-  [/vertrauen/i, 'Vertrauen'],
   [/eifersucht/i, 'Eifersucht'],
-  [/streit|konflikt/i, 'Konflikt'],
   [/kommunikation/i, 'Kommunikation'],
   [/trennung/i, 'Trennung'],
   [/einsam/i, 'Einsamkeit'],
   [/geschrei|schreien|eskalier/i, 'Eskalation'],
+
+  /* ---- Tier C: Führung/Team. */
+  [/kontrolle|kontrollier/i, 'Kontrollverhalten'],
+  [/eigenverantwortung/i, 'Eigenverantwortung'],
+  [/delegier/i, 'Delegation'],
+  [/mikromanage/i, 'Mikromanagement'],
+
+  /* ---- Tier D: allgemein emotional/psychologisch. */
   [/angst/i, 'Angst'],
   [/zweifel|unsicher/i, 'Selbstzweifel'],
   [/selbstwert|selbstbewusstsein/i, 'Selbstwert'],
@@ -208,15 +239,11 @@ const THEME_KEYWORDS = [
   [/burnout/i, 'Burnout'],
   [/energie|erschöpf|müdigkeit/i, 'Energie'],
   [/stress|überforder/i, 'Stress'],
-  [/motivation/i, 'Motivation'],
   [/gewohnheit/i, 'Gewohnheiten'],
   [/muster/i, 'Muster'],
   [/entscheidung/i, 'Entscheidung'],
-  [/kontrolle|kontrollier/i, 'Kontrollverhalten'],
-  [/eigenverantwortung/i, 'Eigenverantwortung'],
-  [/delegier/i, 'Delegation'],
-  [/mikromanage/i, 'Mikromanagement'],
-  /* Strukturelle/fachliche Themen als zweite Priorität */
+
+  /* ---- Tier E: strukturelle/fachliche Themen. */
   [/erzieh/i, 'Erziehung'],
   [/grenzen/i, 'Grenzen'],
   [/schlaf/i, 'Schlaf'],
@@ -229,7 +256,14 @@ const THEME_KEYWORDS = [
   [/sichtbarkeit|social media|posten|posts?\b/i, 'Sichtbarkeit'],
   [/preis|honorar/i, 'Preisgestaltung'],
   [/zeit(mangel)?|balance/i, 'Zeitmangel'],
-  [/spiritual|seele|energiearbeit|heilung/i, 'innere Blockaden']
+  [/spiritual|seele|energiearbeit|heilung/i, 'innere Blockaden'],
+
+  /* ---- Tier F: allerletzter Fallback — nur diese 3 gelten als so
+     generisch, dass sie ausschließlich greifen dürfen, wenn nichts
+     Spezifischeres in den Eingaben vorkommt (siehe V4-Vorgabe). */
+  [/streit|konflikt/i, 'Konflikt'],
+  [/vertrauen/i, 'Vertrauen'],
+  [/motivation/i, 'Motivation']
 ];
 
 const CAP_PRONOUNS = new Set(['Sie', 'Ihre', 'Ihr', 'Ihren', 'Ihrem', 'Ihrer', 'Der', 'Die', 'Das', 'Dass']);
@@ -263,6 +297,21 @@ function extractTheme(text, fallback) {
   return capitalNounGuess(text) || fallback;
 }
 
+/* Sammelt ALLE passenden Themen einer Antwort (nicht nur das erste), damit
+   verschiedene Ideen-Karten unterschiedliche, aber jeweils textlich
+   begründete Blickwinkel auf dieselbe Zielgruppen-Antwort bekommen können,
+   statt denselben Begriff fünfmal zu wiederholen. */
+function collectThemeMatches(text) {
+  const found = [];
+  for (let i = 0; i < THEME_KEYWORDS.length; i++) {
+    const noun = THEME_KEYWORDS[i][1];
+    if (THEME_KEYWORDS[i][0].test(text) && found.indexOf(noun) === -1) {
+      found.push(noun);
+    }
+  }
+  return found;
+}
+
 /* ---------------------------------------------------------------------- *
  * Interne Qualitätsschleife (siehe Hinweis am Dateianfang)
  * ---------------------------------------------------------------------- */
@@ -286,15 +335,54 @@ function lintIdea(idea) {
     console.warn(`Qualitätscheck: Name von Idee "${idea.id}" beginnt mit "Der " ("${idea.name}").`);
   }
   Object.keys(idea.scores).forEach((key) => {
-    if (idea.scores[key] < 9.0) {
-      console.warn(`Qualitätscheck: Score "${key}" von Idee "${idea.id}" liegt unter 9,0.`);
+    if (idea.scores[key] < 9.2) {
+      console.warn(`Qualitätscheck: Score "${key}" von Idee "${idea.id}" liegt unter 9,2.`);
     }
   });
+  if (idea.isTop && idea.scores.gesamt < 9.6) {
+    console.warn(`Qualitätscheck: Top-Idee "${idea.id}" liegt unter 9,6 Gesamt-Potenzial.`);
+  }
 }
 
 /* ---------------------------------------------------------------------- *
  * Ideen-Generierung — 5 strategische Blueprints
  * ---------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------- *
+ * V4 — Zielgruppen-Analyse VOR der Ideen-Generierung.
+ *
+ * Da die App ohne Laufzeit-KI arbeitet, kann "die 7 stärksten Themen
+ * ranken" nicht als generatives Modell laufen. Der ehrliche Ersatz: aus
+ * jeder Antwort werden ALLE zutreffenden Themen-Treffer gesammelt (nicht
+ * nur der erste), sodass reichhaltige Eingaben mehrere unterschiedliche,
+ * textlich begründete Blickwinkel liefern. Die 5 Ideen ziehen daraus
+ * gezielt unterschiedliche Themen, statt denselben Begriff fünfmal zu
+ * wiederholen — das ist der praktische Kern von "erst analysieren, dann
+ * generieren" in einem regelbasierten System.
+ * ---------------------------------------------------------------------- */
+function analyzeAudience(answers) {
+  const problemMatches = collectThemeMatches(answers.problem);
+  const traumMatches = collectThemeMatches(answers.traum);
+
+  const problemFallback = capitalNounGuess(answers.problem) || 'Blockade';
+  const traumFallback = capitalNounGuess(answers.traum) || 'Ziel';
+
+  const p1 = problemMatches[0] || problemFallback;
+  const p2 = problemMatches[1] || p1;
+  const p3 = problemMatches[2] || problemMatches[1] || p1;
+  const t1 = traumMatches[0] || traumFallback;
+  const t2 = traumMatches[1] || t1;
+
+  return {
+    problemThema: p1,
+    problemThemaAlt: p2,
+    traumThema: t1,
+    traumThemaAlt: t2,
+    bereitThema: p3 !== p1 ? p3 : (t2 !== t1 ? t2 : p1),
+    methodeThema: extractTheme(answers.methode, 'Ihrer Methode'),
+    expertiseThema: extractTheme(answers.expertise, 'Ihrer Expertise')
+  };
+}
 
 function buildIdeas(answers) {
   const zg = answers.zielgruppe;
@@ -305,13 +393,9 @@ function buildIdeas(answers) {
   const methode = answers.methode;
 
   const angebotKurz = angebotName(angebot);
-  const preis = extractPreis(angebot);
   const p = PRONOUNS[detectGender(zg)];
-
-  const problemThema = extractTheme(problem, 'Blockade');
-  const traumThema = extractTheme(traum, 'Ziel');
-  const methodeThema = extractTheme(methode, 'Ihrer Methode');
-  const expertiseThema = extractTheme(expertise, 'Ihrer Expertise');
+  const audience = analyzeAudience(answers);
+  const { problemThema, problemThemaAlt, traumThema, traumThemaAlt, bereitThema, methodeThema, expertiseThema } = audience;
 
   const baseSeed = hashStr(zg + problem + traum + angebot + expertise + methode);
   const methodeReichhaltig = methode.trim().split(/\s+/).length >= 10;
@@ -321,7 +405,7 @@ function buildIdeas(answers) {
 
   const blueprints = [];
 
-  /* ---- 1. Diagnose · Muster-Kompass ---- */
+  /* ---- 1. Diagnose · Muster-Kompass (Perspektive: Ursache/Typ) ---- */
   blueprints.push({
     id: 'muster-kompass',
     category: 'Diagnose',
@@ -344,13 +428,13 @@ function buildIdeas(answers) {
     whatNext: `${p.subjCap} will verstehen, wie sich dieses Muster dauerhaft durchbrechen lässt.`,
     salesLine: `Das Tool zeigt das ${problemThema}-Muster, ${angebotKurz} löst es dauerhaft auf.`,
     different: `Es liefert nicht nur eine Kategorie, sondern verbindet Muster, Ursache und einen konkreten nächsten Schritt – das leistet ein einzelner ChatGPT-Prompt nicht.`,
-    expertiseFit: `Die Muster-Definitionen basieren auf Ihrer Expertise (${expertiseThema}) statt auf generischem Coaching-Wissen.`,
+    expertiseFit: `Das Tool nutzt ${methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`}, um das ${problemThema}-Muster im Licht Ihrer Expertise (${expertiseThema}) auszuwerten statt mit generischem Coaching-Wissen.`,
     umsetzung: { label: 'Einfach', time: 'ca. 25–35 Minuten' },
-    scoreBase: { wow: 9.4, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.1, leadsog: 9.5, kaufsog: 9.2, umsetzung: 9.4, expertise: 9.2 },
+    scoreBase: { wow: 9.5, habenwollen: 9.4, individualisierung: 9.4, einzigartigkeit: 9.3, leadsog: 9.6, kaufsog: 9.4, umsetzung: 9.5, expertise: 9.4 },
     boosts: problemReichhaltig ? { wow: 0.1, individualisierung: 0.1 } : {}
   });
 
-  /* ---- 2. Analyse/Audit · Potenzial-Score ---- */
+  /* ---- 2. Analyse/Audit · Potenzial-Score (Perspektive: Score) ---- */
   blueprints.push({
     id: 'potenzial-score',
     category: 'Analyse / Audit',
@@ -373,51 +457,51 @@ function buildIdeas(answers) {
     whatNext: `${p.subjCap} will wissen, wie sich genau diese eine Lücke gezielt schließen lässt.`,
     salesLine: `Das Tool zeigt die Lücke zu ${traumThema}, ${angebotKurz} schließt sie strukturiert.`,
     different: `Der Score basiert auf Ihren eigenen fachlichen Kriterien statt auf einem austauschbaren Standard-Test.`,
-    expertiseFit: `Die Bewertungslogik spiegelt, wofür Sie stehen: ${expertiseThema}.`,
+    expertiseFit: `Die Bewertungskriterien des Scores sind aus Ihrer Expertise (${expertiseThema}) abgeleitet, nicht aus einer allgemeinen Checkliste.`,
     umsetzung: { label: 'Einfach', time: 'ca. 25–35 Minuten' },
-    scoreBase: { wow: 9.1, habenwollen: 9.2, individualisierung: 9.1, einzigartigkeit: 9.0, leadsog: 9.3, kaufsog: 9.4, umsetzung: 9.5, expertise: 9.1 },
+    scoreBase: { wow: 9.3, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.4, kaufsog: 9.5, umsetzung: 9.6, expertise: 9.3 },
     boosts: traumReichhaltig ? { leadsog: 0.1, kaufsog: 0.1 } : {}
   });
 
-  /* ---- 3. Strategie · Fahrplan-Formel ---- */
+  /* ---- 3. Strategie · Fahrplan-Formel (Perspektive: Roadmap) ---- */
   blueprints.push({
     id: 'fahrplan-formel',
     category: 'Strategie',
     toolType: 'Rechner + Roadmap',
-    name: `${traumThema}-Fahrplan-Formel`,
-    subline: `${p.subjCap} erhält einen persönlichen Fahrplan mit 3 bis 4 Etappen, der zeigt, wie ${p.subj === 'er' ? 'er' : 'sie'} ${traumThema} Schritt für Schritt erreicht.`,
+    name: `${traumThemaAlt}-Fahrplan-Formel`,
+    subline: `${p.subjCap} erhält einen persönlichen Fahrplan mit 3 bis 4 Etappen, der zeigt, wie ${p.subj === 'er' ? 'er' : 'sie'} ${traumThemaAlt} Schritt für Schritt erreicht.`,
     ioLine: `Aktueller Stand + Wunsch-Zeitpunkt → persönliche Etappen-Roadmap mit je einer konkreten nächsten Handlung`,
     inputs: [
       `Aktueller Status quo (Zeit, Ressourcen oder Fortschritt aktuell)`,
-      `Wunsch-Zeitpunkt für ${traumThema}`,
+      `Wunsch-Zeitpunkt für ${traumThemaAlt}`,
       `Größtes aktuelles Hindernis: ${problemThema}`
     ],
-    output: `Eine individuelle Schritt-für-Schritt-Roadmap mit 3–4 Etappen bis ${traumThema}, inklusive einer konkreten nächsten Handlung je Etappe.`,
+    output: `Eine individuelle Schritt-für-Schritt-Roadmap mit 3–4 Etappen bis ${traumThemaAlt}, inklusive einer konkreten nächsten Handlung je Etappe.`,
     whyStrong: [
-      `${p.subjCap} sieht ${traumThema} erstmals als planbaren Weg statt als vages Fernziel.`,
+      `${p.subjCap} sieht ${traumThemaAlt} erstmals als planbaren Weg statt als vages Fernziel.`,
       `Jede Etappe liefert eine konkrete Handlung statt nur Motivation.`
     ],
     miniPreview: `Etappe 2 von 4 – erreichbar, sobald der erste Schritt bei ${problemThema} angegangen wird.`,
-    wowMoment: `${p.subjCap} erkennt, dass ${traumThema} nicht an fehlender Motivation scheitert, sondern an der fehlenden Reihenfolge der richtigen Schritte.`,
+    wowMoment: `${p.subjCap} erkennt, dass ${traumThemaAlt} nicht an fehlender Willenskraft scheitert, sondern an der fehlenden Reihenfolge der richtigen Schritte.`,
     whatNext: `${p.subjCap} will wissen, wie sich die nächste Etappe konkret und ohne Umwege umsetzen lässt.`,
-    salesLine: `Das Tool zeigt den Weg zu ${traumThema}, ${angebotKurz} begleitet die Umsetzung jeder Etappe.`,
+    salesLine: `Das Tool zeigt den Weg zu ${traumThemaAlt}, ${angebotKurz} begleitet die Umsetzung jeder Etappe.`,
     different: `Die Etappen sind an Ihrer Methode ausgerichtet – nicht an einem generischen Fahrplan-Schema.`,
-    expertiseFit: `Die Roadmap spiegelt Ihre eigene Vorgehensweise wider: ${methodeThema}.`,
+    expertiseFit: `Die Etappen der Roadmap folgen ${methodeThema === 'Ihrer Methode' ? 'Ihrer eigenen Methode' : `Ihrer Methode „${methodeThema}“`}, nicht einem austauschbaren Standard-Fahrplan.`,
     umsetzung: { label: 'Einfach', time: 'ca. 30–40 Minuten' },
-    scoreBase: { wow: 9.3, habenwollen: 9.4, individualisierung: 9.2, einzigartigkeit: 9.1, leadsog: 9.4, kaufsog: 9.5, umsetzung: 9.1, expertise: 9.2 },
+    scoreBase: { wow: 9.4, habenwollen: 9.5, individualisierung: 9.3, einzigartigkeit: 9.3, leadsog: 9.5, kaufsog: 9.6, umsetzung: 9.3, expertise: 9.3 },
     boosts: {}
   });
 
-  /* ---- 4. Coach · Ursachen-Scanner ---- */
+  /* ---- 4. Coach · Ursachen-Scanner (Perspektive: Ursache, methodenbasiert) ---- */
   blueprints.push({
     id: 'ursachen-scanner',
     category: 'Coach',
     toolType: 'Mini-Coaching-Simulator',
-    name: `${problemThema}-Ursachen-Scanner`,
-    subline: `${p.subjCap} bekommt in einer kurzen Mini-Session eine erste Einschätzung nach Ihrer eigenen Methode – bezogen auf die eigene Situation bei ${problemThema}.`,
-    ioLine: `Eine konkrete aktuelle Situation bei ${problemThema} + bisherige Versuche → methodenbasierte Ersteinschätzung + nächster sinnvoller Schritt`,
+    name: `${problemThemaAlt}-Ursachen-Scanner`,
+    subline: `${p.subjCap} bekommt in einer kurzen Mini-Session eine erste Einschätzung nach Ihrer eigenen Methode – bezogen auf die eigene Situation bei ${problemThemaAlt}.`,
+    ioLine: `Eine konkrete aktuelle Situation bei ${problemThemaAlt} + bisherige Versuche → methodenbasierte Ersteinschätzung + nächster sinnvoller Schritt`,
     inputs: [
-      `Eine konkrete aktuelle Situation bei ${problemThema}`,
+      `Eine konkrete aktuelle Situation bei ${problemThemaAlt}`,
       `Was bisher schon versucht wurde`,
       `Das gewünschte Ergebnis: ${traumThema}`
     ],
@@ -426,25 +510,25 @@ function buildIdeas(answers) {
       `${p.subjCap} erlebt unmittelbar, wie sich Ihre Methode auf die eigene Situation anwenden lässt.`,
       `Die Empfehlung ist an Ihre Methode gebunden – kaum durch einen austauschbaren Prompt ersetzbar.`
     ],
-    miniPreview: `Ersteinschätzung „${problemThema} unbewusst vermieden“ → konkreter erster Schritt für diese Woche.`,
+    miniPreview: `Ersteinschätzung „${problemThemaAlt} unbewusst vermieden“ → konkreter erster Schritt für diese Woche.`,
     wowMoment: `${p.subjCap} erkennt, dass bisherige Versuche nicht am fehlenden Willen scheiterten, sondern eine Ebene tiefer ansetzen müssten – genau dort, wo Ihre Methode ansetzt.`,
     whatNext: `${p.subjCap} will die eigene Situation ausführlicher und persönlich mit Ihnen durchgehen.`,
     salesLine: `Das Tool gibt eine erste methodenbasierte Einschätzung, ${angebotKurz} vertieft sie in einer echten Begleitung.`,
     different: `Es antwortet nicht generisch, sondern erkennbar im Sinne Ihrer eigenen Methode – das kann ein Standard-Chatbot nicht leisten.`,
-    expertiseFit: `Die Logik basiert direkt auf Ihrer Methode: ${methodeThema}.`,
+    expertiseFit: `Die Logik basiert direkt auf ${methodeThema === 'Ihrer Methode' ? 'Ihrer Methode' : `Ihrer Methode „${methodeThema}“`} und wertet ${problemThemaAlt} genau so aus, wie Sie es in einer echten Sitzung tun würden.`,
     umsetzung: { label: 'Mittel', time: 'ca. 40–60 Minuten' },
-    scoreBase: { wow: 9.7, habenwollen: 9.5, individualisierung: 9.7, einzigartigkeit: 9.8, leadsog: 9.4, kaufsog: 9.4, umsetzung: 9.0, expertise: 9.7 },
+    scoreBase: { wow: 9.7, habenwollen: 9.6, individualisierung: 9.8, einzigartigkeit: 9.8, leadsog: 9.6, kaufsog: 9.5, umsetzung: 9.2, expertise: 9.8 },
     boosts: methodeReichhaltig ? { individualisierung: 0.1, einzigartigkeit: 0.1, expertise: 0.1 } : {}
   });
 
-  /* ---- 5. Matcher · Bereit-oder-Noch-Nicht-Check ---- */
+  /* ---- 5. Matcher · Bereitschafts-Check (Perspektive: Entscheidung) ---- */
   blueprints.push({
     id: 'bereit-check',
     category: 'Matcher',
     toolType: 'Passungs-Check',
-    name: `${traumThema}-Bereitschafts-Check`,
+    name: `${bereitThema}-Bereitschafts-Check`,
     subline: `${p.subjCap} bekommt in wenigen Klicks eine ehrliche Einschätzung, ob jetzt der richtige Zeitpunkt für ${angebotKurz} ist – ganz ohne Verkaufsdruck.`,
-    ioLine: `Fragen zu Dringlichkeit, Zielklarheit und Veränderungsbereitschaft → klare Passungs-Aussage mit Begründung`,
+    ioLine: `Fragen zu Dringlichkeit bei ${problemThema}, Zielklarheit bei ${traumThema} und Veränderungsbereitschaft → klare Passungs-Aussage mit Begründung`,
     inputs: [
       `Aktuelle Dringlichkeit bei ${problemThema}`,
       `Zielklarheit in Bezug auf ${traumThema}`,
@@ -452,7 +536,7 @@ function buildIdeas(answers) {
     ],
     output: `Eine klare, persönliche Passungs-Aussage (starke Passung / teilweise Passung / noch nicht der richtige Zeitpunkt) mit nachvollziehbarer Begründung.`,
     whyStrong: [
-      `${p.subjCap} bekommt Klarheit statt eines weiteren Verkaufsversprechens.`,
+      `${p.subjCap} bekommt eine ehrliche Einschätzung statt eines weiteren Verkaufsversprechens.`,
       `Eine ehrliche Einschätzung senkt die Kaufhürde spürbar, statt sie zu erhöhen.`
     ],
     miniPreview: `„Starke Passung“ → Empfehlung: jetzt den nächsten Schritt zu ${angebotKurz} gehen.`,
@@ -462,11 +546,11 @@ function buildIdeas(answers) {
     different: `Die Kriterien sind auf Ihre tatsächlichen Erfolgsfaktoren zugeschnitten statt auf einen generischen Fragebogen.`,
     expertiseFit: `Die Passungs-Kriterien spiegeln, was bei Ihnen wirklich funktioniert: ${expertiseThema}.`,
     umsetzung: { label: 'Sehr einfach', time: 'ca. 20–30 Minuten' },
-    scoreBase: { wow: 9.0, habenwollen: 9.2, individualisierung: 9.1, einzigartigkeit: 9.0, leadsog: 9.3, kaufsog: 9.6, umsetzung: 9.6, expertise: 9.1 },
+    scoreBase: { wow: 9.2, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.5, kaufsog: 9.8, umsetzung: 9.8, expertise: 9.3 },
     boosts: expertiseReichhaltig ? { expertise: 0.1 } : {}
   });
 
-  /* ---- Scores berechnen (Elite-Bereich 9,0–9,9) ---- */
+  /* ---- Scores berechnen (Elite-Bereich 9,2–9,9) ---- */
   const METRIC_WEIGHTS = { wow: 0.15, habenwollen: 0.12, individualisierung: 0.12, einzigartigkeit: 0.12, leadsog: 0.16, kaufsog: 0.16, umsetzung: 0.08, expertise: 0.09 };
 
   let ideas = blueprints.map((bp, i) => {
@@ -508,9 +592,12 @@ function buildIdeas(answers) {
   /* ---- Sortierung: stärkste Idee immer an Position 1 ---- */
   ideas.sort((a, b) => b.scores.gesamt - a.scores.gesamt);
 
-  /* Sicherheitsnetz: Top-Idee garantiert ≥ 9,5 */
-  if (ideas[0].scores.gesamt < 9.5) {
-    ideas[0].scores.gesamt = clampScore9(9.5 + Math.abs(seededJitter(baseSeed)) * 0.6);
+  /* Sicherheitsnetz: Top-Idee garantiert ≥ 9,6, alle anderen ≥ 9,2
+     (Letzteres ist durch den Floor in clampScore9 bereits pro Metrik
+     erzwungen und pflanzt sich damit mathematisch in den gewichteten
+     Gesamt-Potenzial-Wert fort). */
+  if (ideas[0].scores.gesamt < 9.6) {
+    ideas[0].scores.gesamt = clampScore9(9.6 + Math.abs(seededJitter(baseSeed)) * 0.5);
   }
 
   ideas.forEach((idea, i) => {
@@ -603,10 +690,11 @@ WOW-MOMENT
 ${idea.wowMoment}
 
 DESIGN-ANFORDERUNGEN
-- Helle Premium-Optik: großzügige Weißräume, klare runde Karten, moderne Buttons
-- CTA-Buttons: dunkles CI-Blau als Hintergrund, Champagner-/Gold-Schrift
-- Gold ausschließlich für Highlights (Scores, Sterne, Top-Empfehlung), nie als Buttonfläche
-- Dunkles Blau/Grün für Überschriften und Struktur
+- Premium-Optik in kräftigem CI-Blau (#016E8E) + sehr hellem Creme/Offwhite, großzügige Weißräume, klare runde Karten
+- Ein deutlich sichtbarer blauer Hero-/Header-Bereich oben (kein dünner Strich), Headline in Weiß/Offwhite
+- CTA-Buttons: Hintergrund exakt #016E8E, Champagner-/Gold-Schrift; sekundäre Buttons hell mit blauem Rand und blauer Schrift
+- Gold ausschließlich sparsam für Sterne, Scores und Top-Empfehlung, nie als große Fläche
+- Dunkler Text in tiefem Blau/Anthrazit statt Schwarz
 - Gut lesbare, ausreichend große Schrift für eine Zielgruppe 45+
 - Kein technischer Entwickler-Look, keine Fachbegriffe in der Nutzer-Ansicht
 
@@ -685,11 +773,11 @@ function renderIdeaCard(idea) {
     </div>
     <p class="umsetzung-line">Umsetzung: <strong>${idea.umsetzung.label}</strong> · Erste Version in ${idea.umsetzung.time} baubar</p>
     <div class="potential-row">
-      <div class="potential-stat">
+      <div class="potential-stat is-gold">
         <span class="potential-label">Gesamt-Potenzial</span>
         <span class="potential-value">${formatScore(idea.scores.gesamt)}/10</span>
       </div>
-      <div class="potential-stat">
+      <div class="potential-stat is-blue">
         <span class="potential-label">Lead-Sog</span>
         <span class="potential-value">${formatScore(idea.scores.leadsog)}/10</span>
       </div>
