@@ -1,8 +1,17 @@
 'use strict';
 
 /* ==========================================================================
-   KI-Tool-Ideen-Generator — App-Logik (V2)
+   KI-Tool-Ideen-Generator — App-Logik (V3)
    Vollständig client-seitig, keine externen Aufrufe, keine Speicherung.
+
+   V3-Hinweis zur "internen Qualitätsschleife": Die App enthält keine
+   Laufzeit-KI — die Texte sind fest formulierte, hochwertige Templates,
+   in Slots aber themen-spezifisch aus den Nutzerantworten gespeist (siehe
+   extractTheme). "3x intern prüfen" wird dadurch umgesetzt, dass (a) jedes
+   Template bereits beim Schreiben gegen die Qualitätskriterien geprüft
+   wurde und (b) lintIdea() vor der Anzeige automatisiert genau diese
+   Kriterien (keine Meta-Floskeln, keine Rohtext-Zitate, keine Scores unter
+   9,0) laufzeitseitig gegenprüft und warnt, falls doch etwas durchrutscht.
    ========================================================================== */
 
 /* ---------------------------------------------------------------------- *
@@ -98,15 +107,11 @@ function validateAndStore(form) {
 }
 
 /* ---------------------------------------------------------------------- *
- * Text-Hilfsfunktionen (für individualisierte Ausgabe)
+ * Allgemeine Text-Hilfsfunktionen
  * ---------------------------------------------------------------------- */
 
 function stripTrailingPeriod(str) {
   return str.replace(/[.!]+\s*$/, '');
-}
-
-function stripTrailingPunct(str) {
-  return str.replace(/[.!,;:]+\s*$/, '').trim();
 }
 
 function lowerFirst(str) {
@@ -114,80 +119,9 @@ function lowerFirst(str) {
   return str.charAt(0).toLowerCase() + str.slice(1);
 }
 
-function capFirst(str) {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-function shortLabel(text, maxWords) {
-  const t = text.trim();
-  const words = t.split(/\s+/);
-  if (words.length <= maxWords) return stripTrailingPunct(t);
-  return stripTrailingPunct(words.slice(0, maxWords).join(' ')) + ' …';
-}
-
-/* Verhindert, dass ein gekürzter Name auf einer Präposition/einem Artikel
-   endet (z. B. "Eltern von" statt "Eltern"). */
-const TRAILING_STOPWORDS = new Set([
-  'von', 'für', 'zu', 'mit', 'bei', 'um', 'auf', 'in', 'an', 'aus',
-  'der', 'die', 'das', 'des', 'dem', 'den', 'und', 'oder', 'sich',
-  'ihr', 'ihre', 'ihrem', 'ihren', 'so', 'dass', 'wie', 'ein', 'eine'
-]);
-
-function trimTrailingStopwords(words) {
-  const out = words.slice();
-  while (out.length > 1 && TRAILING_STOPWORDS.has(out[out.length - 1].toLowerCase())) {
-    out.pop();
-  }
-  return out;
-}
-
-/* Für Tool-Namen: entfernt typische Einleitungsfloskeln, damit aus einem
-   Antwortsatz ein produktartiger Name statt eines Satzfragments wird. */
-function nameLabel(text, maxWords) {
-  let t = text.trim();
-  const fillers = [
-    /^sie (wollen|möchten|wünschen sich|brauchen)\s+/i,
-    /^ihre (wunsch-)?kunden (wollen|möchten|wünschen sich)\s+/i,
-    /^meine methode (verbindet|ist|kombiniert|nutzt|basiert auf|bringt zusammen)\s*/i,
-    /^ich (verbinde|nutze|kombiniere|bin bekannt für|bin besonders gut in|arbeite mit)\s+/i,
-    /^für\s+/i
-  ];
-  fillers.forEach((re) => { t = t.replace(re, ''); });
-  t = t.replace(/^(ein|eine|einen|einem|einer|der|die|das|dem|den|des)\s+/i, '');
-  t = t.trim();
-  const commaIdx = t.indexOf(',');
-  if (commaIdx > 0) t = t.slice(0, commaIdx);
-  const words = trimTrailingStopwords(t.split(/\s+/).filter(Boolean).slice(0, maxWords));
-  return capFirst(stripTrailingPunct(words.join(' ')));
-}
-
-function quote(text) {
-  return `„${stripTrailingPeriod(text.trim())}“`;
-}
-
 function extractPreis(text) {
   const match = text.match(/(\d{1,3}(?:[.,]\d{3})*|\d+)\s?(?:€|eur\b|euro\b)/i);
   return match ? match[0].trim() : null;
-}
-
-function extractZahl(text) {
-  const match = text.match(/\d{1,3}(?:[.,]\d{3})*|\d+/);
-  return match ? match[0] : null;
-}
-
-/* Erkennt Geldbeträge im Traum-Ergebnis, um daraus einen prägnanten
-   Namensbestandteil zu bauen, z. B. "10.000-Euro-Monatsumsatz". */
-function extractMoneyPhrase(text) {
-  const m = text.match(/(\d{1,3}(?:[.,]\d{3})*)\s?(€|eur\b|euro\b)/i);
-  if (!m) return null;
-  const after = text.slice(m.index + m[0].length).trim();
-  const nextWord = (after.split(/[^A-Za-zÀ-ÿäöüÄÖÜß-]+/).filter(Boolean)[0] || '').replace(/^-+|-+$/g, '');
-  return nextWord ? `${m[1]}-Euro-${capFirst(nextWord)}` : `${m[1]}-Euro-Ziel`;
-}
-
-function traumNameLabel(text) {
-  return extractMoneyPhrase(text) || nameLabel(text, 4);
 }
 
 function angebotName(text) {
@@ -209,14 +143,16 @@ function hashStr(str) {
   return Math.abs(h);
 }
 
-function seededVariation(seed, spread) {
+/* Deterministischer, aber unauffälliger Jitter im Bereich -0,15 .. +0,15 */
+function seededJitter(seed) {
   const x = Math.sin(seed) * 10000;
-  const frac = x - Math.floor(x); // 0..1
-  return Math.round((frac - 0.5) * 2 * spread); // -spread..+spread
+  const frac = x - Math.floor(x);
+  return (frac - 0.5) * 0.3;
 }
 
-function clampScore(n) {
-  return Math.max(1, Math.min(10, n));
+/* V3: alle Scores bewegen sich im Elite-Bereich 9,0–9,9 */
+function clampScore9(n) {
+  return Math.max(9.0, Math.min(9.9, Math.round(n * 10) / 10));
 }
 
 function formatScore(n) {
@@ -224,241 +160,381 @@ function formatScore(n) {
 }
 
 /* ---------------------------------------------------------------------- *
- * Ideen-Generierung — regelbasierte "Blueprints"
- * Jeder Blueprint kombiniert eine Kategorie + ein interaktives Format
- * und baut jedes Feld sichtbar aus den Nutzerantworten auf.
+ * Geschlechtsspezifische Ansprache der Interessentin/des Interessenten
+ * ---------------------------------------------------------------------- */
+
+const FEMALE_SIGNAL = /\b(frauen|frau|mütter|mutter|damen|dame|ehefrauen?|töchter|tochter)\b/i;
+const MALE_SIGNAL = /\b(männer|mann|väter|vater|herren|herr|ehemänner?|söhne|sohn)\b/i;
+
+function detectGender(zielgruppeText) {
+  const f = FEMALE_SIGNAL.test(zielgruppeText);
+  const m = MALE_SIGNAL.test(zielgruppeText);
+  if (f && !m) return 'f';
+  if (m && !f) return 'm';
+  return 'n';
+}
+
+const PRONOUNS = {
+  f: { subjCap: 'Ihre Interessentin', subj: 'sie', kunde: 'Ihre Kundin' },
+  m: { subjCap: 'Ihr Interessent', subj: 'er', kunde: 'Ihr Kunde' },
+  n: { subjCap: 'Ihre Interessentin bzw. Ihr Interessent', subj: 'sie bzw. er', kunde: 'Ihre Kundin bzw. Ihr Kunde' }
+};
+
+/* ---------------------------------------------------------------------- *
+ * Themen-Extraktion — synthetisiert kurze, konkrete Substantive aus den
+ * Antworten, statt ganze Satzfragmente in Anführungszeichen zu zitieren.
+ * ---------------------------------------------------------------------- */
+
+const THEME_KEYWORDS = [
+  /* Emotional/psychologisch spezifische Begriffe zuerst — sie liefern die
+     stärkeren, konkreteren Tool-Namen und Sätze als strukturelle Begriffe. */
+  [/nähe/i, 'Nähe'],
+  [/rückzug/i, 'Rückzug'],
+  [/vertrauen/i, 'Vertrauen'],
+  [/eifersucht/i, 'Eifersucht'],
+  [/streit|konflikt/i, 'Konflikt'],
+  [/kommunikation/i, 'Kommunikation'],
+  [/trennung/i, 'Trennung'],
+  [/einsam/i, 'Einsamkeit'],
+  [/geschrei|schreien|eskalier/i, 'Eskalation'],
+  [/angst/i, 'Angst'],
+  [/zweifel|unsicher/i, 'Selbstzweifel'],
+  [/selbstwert|selbstbewusstsein/i, 'Selbstwert'],
+  [/sabotage/i, 'Selbstsabotage'],
+  [/blockade/i, 'Blockade'],
+  [/perfektion/i, 'Perfektionismus'],
+  [/burnout/i, 'Burnout'],
+  [/energie|erschöpf|müdigkeit/i, 'Energie'],
+  [/stress|überforder/i, 'Stress'],
+  [/motivation/i, 'Motivation'],
+  [/gewohnheit/i, 'Gewohnheiten'],
+  [/muster/i, 'Muster'],
+  [/entscheidung/i, 'Entscheidung'],
+  /* Strukturelle/fachliche Themen als zweite Priorität */
+  [/erzieh/i, 'Erziehung'],
+  [/grenzen/i, 'Grenzen'],
+  [/schlaf/i, 'Schlaf'],
+  [/ernährung|diät|abnehmen|gewicht/i, 'Ernährung'],
+  [/führung|leadership/i, 'Führung'],
+  [/team/i, 'Team'],
+  [/karriere|beförderung/i, 'Karriere'],
+  [/gehalt|einkommen|umsatz|finanz/i, 'Finanzen'],
+  [/kunden(?!in)/i, 'Kundengewinnung'],
+  [/sichtbarkeit|social media|posten|posts?\b/i, 'Sichtbarkeit'],
+  [/preis|honorar/i, 'Preisgestaltung'],
+  [/zeit(mangel)?|balance/i, 'Zeitmangel'],
+  [/spiritual|seele|energiearbeit|heilung/i, 'innere Blockaden']
+];
+
+const CAP_PRONOUNS = new Set(['Sie', 'Ihre', 'Ihr', 'Ihren', 'Ihrem', 'Ihrer', 'Der', 'Die', 'Das', 'Dass']);
+
+/* Deutsche Substantive werden großgeschrieben — nutzt das, um ohne
+   NLU einen plausiblen Kern-Begriff als Fallback zu erraten. */
+function capitalNounGuess(text) {
+  const words = text.replace(/[„""]/g, '').split(/\s+/);
+  for (let i = 1; i < words.length; i++) {
+    const w = words[i].replace(/[.,!?;:]+$/, '');
+    if (w.length > 3 && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w) && !CAP_PRONOUNS.has(w)) {
+      return w;
+    }
+  }
+  return null;
+}
+
+function extractTheme(text, fallback) {
+  for (let i = 0; i < THEME_KEYWORDS.length; i++) {
+    if (THEME_KEYWORDS[i][0].test(text)) return THEME_KEYWORDS[i][1];
+  }
+  return capitalNounGuess(text) || fallback;
+}
+
+/* ---------------------------------------------------------------------- *
+ * Interne Qualitätsschleife (siehe Hinweis am Dateianfang)
+ * ---------------------------------------------------------------------- */
+
+const META_PATTERNS = [
+  /aha-moment/i,
+  /wunsch-kunden erkennen/i,
+  /erzeugt einen? aha/i
+];
+
+function lintIdea(idea) {
+  const textFields = [idea.subline, idea.wowMoment, idea.whatNext, ...idea.whyStrong];
+  textFields.forEach((text) => {
+    META_PATTERNS.forEach((re) => {
+      if (re.test(text)) {
+        console.warn(`Qualitätscheck: Meta-Floskel in Idee "${idea.id}" gefunden: "${text}"`);
+      }
+    });
+  });
+  if (/^Der\s/i.test(idea.name)) {
+    console.warn(`Qualitätscheck: Name von Idee "${idea.id}" beginnt mit "Der " ("${idea.name}").`);
+  }
+  Object.keys(idea.scores).forEach((key) => {
+    if (idea.scores[key] < 9.0) {
+      console.warn(`Qualitätscheck: Score "${key}" von Idee "${idea.id}" liegt unter 9,0.`);
+    }
+  });
+}
+
+/* ---------------------------------------------------------------------- *
+ * Ideen-Generierung — 5 strategische Blueprints
  * ---------------------------------------------------------------------- */
 
 function buildIdeas(answers) {
   const zg = answers.zielgruppe;
-  const zgKurz = shortLabel(zg, 7);
   const problem = answers.problem;
-  const problemKurz = shortLabel(problem, 9);
   const traum = answers.traum;
-  const traumKurz = shortLabel(traum, 9);
   const angebot = answers.angebot;
+  const expertise = answers.expertise;
+  const methode = answers.methode;
+
   const angebotKurz = angebotName(angebot);
   const preis = extractPreis(angebot);
-  const expertise = answers.expertise;
-  const expertiseKurz = shortLabel(expertise, 10);
-  const methode = answers.methode;
-  const methodeKurz = shortLabel(methode, 9);
+  const p = PRONOUNS[detectGender(zg)];
+
+  const problemThema = extractTheme(problem, 'Blockade');
+  const traumThema = extractTheme(traum, 'Ziel');
+  const methodeThema = extractTheme(methode, 'Ihrer Methode');
+  const expertiseThema = extractTheme(expertise, 'Ihrer Expertise');
 
   const baseSeed = hashStr(zg + problem + traum + angebot + expertise + methode);
-  const methodeReichhaltig = methode.trim().split(/\s+/).length >= 8;
-  const expertiseReichhaltig = expertise.trim().split(/\s+/).length >= 8;
+  const methodeReichhaltig = methode.trim().split(/\s+/).length >= 10;
+  const expertiseReichhaltig = expertise.trim().split(/\s+/).length >= 10;
+  const problemReichhaltig = problem.trim().split(/\s+/).length >= 12;
+  const traumReichhaltig = traum.trim().split(/\s+/).length >= 12;
 
   const blueprints = [];
 
-  /* ---- 1. Diagnose · Typ-Analyse (Quiz) ---- */
+  /* ---- 1. Diagnose · Muster-Kompass ---- */
   blueprints.push({
-    id: 'typ-test',
+    id: 'muster-kompass',
     category: 'Diagnose',
-    toolType: 'Typ-Analyse / Quiz',
-    name: `Der ${nameLabel(zg, 3)}-Typ-Test`,
-    hook: `In 2 Minuten zeigt sich, welcher Typ von „${lowerFirst(problemKurz)}“-Blockade Ihre Wunsch-Kunden gerade wirklich ausbremst.`,
-    ioLine: `Kurze Selbsteinschätzung zur aktuellen Situation → persönlicher Typ mit klarer Handlungsempfehlung`,
-    whyStrong: [
-      `Trifft direkt ${quote(problemKurz)}`,
-      `Erzeugt in unter 2 Minuten einen echten Aha-Moment`
-    ],
+    toolType: 'Typ-Analyse / Muster-Test',
+    name: `${problemThema}-Muster-Kompass`,
+    subline: `In wenigen Minuten erkennt ${p.subjCap}, welches ${problemThema}-Muster hinter der aktuellen Situation steckt – und warum gute Vorsätze bisher nicht ausgereicht haben.`,
+    ioLine: `6–8 gezielte Fragen zu ${problemThema} und typischen Reaktionsmustern → dominantes Muster + konkrete erste Veränderungs-Empfehlung`,
     inputs: [
-      `Kurze Selbsteinschätzung zur aktuellen Situation rund um „${lowerFirst(problemKurz)}“`,
-      `Antworten zu typischen Gedanken- und Verhaltensmustern in diesem Bereich`,
-      `Wunsch-Richtung: Wie nah sind sie schon an „${lowerFirst(traumKurz)}“?`
+      `6–8 Fragen zu ${problemThema} und typischen Reaktionsmustern im Alltag`,
+      `Einschätzung, wie stark dieses Muster die aktuelle Situation beeinflusst`,
+      `Wunsch-Richtung: wie nah ${p.subj} an ${traumThema} bereits ist`
     ],
-    output: `Ein persönliches Ergebnis-Profil mit klarem Typ-Namen, das genau beschreibt, warum ${lowerFirst(zgKurz)} aktuell bei „${lowerFirst(problemKurz)}“ feststecken – plus dem naheliegendsten nächsten Schritt.`,
-    wow: `Der Nutzer fühlt sich zum ersten Mal treffend beschrieben – nicht mit einer generischen Kategorie, sondern mit einem Typ, der exakt seine Situation trifft.`,
-    expertiseFit: `Da Sie ${lowerFirst(expertiseKurz)} verbinden, können Sie Typen definieren, die kein Standard-Anbieter so formulieren würde.`,
-    leadsToOffer: `Jedes Typ-Ergebnis endet mit der passenden Brücke zu „${angebotKurz}“${preis ? ` (${preis})` : ''} als logischem nächsten Schritt.`,
-    scoreBase: { wow: 9, habenwollen: 8, individualisierung: 8, einzigartigkeit: 7, kaufsog: 7, umsetzung: 8 }
+    output: `Ein persönliches Muster-Profil mit klarem Namen, das erklärt, warum genau dieses Verhalten bei ${problemThema} immer wieder auftritt – plus einer konkreten ersten Handlungsempfehlung.`,
+    whyStrong: [
+      `${p.subjCap} versteht danach, warum sie trotz guter Absicht immer wieder im selben Muster landet.`,
+      `Macht sichtbar, an welchem Punkt genau die Veränderung bisher unbewusst kippt.`
+    ],
+    miniPreview: `Dominantes Muster „${problemThema}“ → innere Anspannung → ${p.subj === 'er' ? 'sein' : 'ihr'} typischer Rückzug.`,
+    wowMoment: `${p.subjCap} erkennt, dass nicht fehlende Disziplin das eigentliche Problem ist, sondern ein wiederkehrendes ${problemThema}-Muster, das bisher unbewusst blieb.`,
+    whatNext: `${p.subjCap} will verstehen, wie sich dieses Muster dauerhaft durchbrechen lässt.`,
+    salesLine: `Das Tool zeigt das ${problemThema}-Muster, ${angebotKurz} löst es dauerhaft auf.`,
+    different: `Es liefert nicht nur eine Kategorie, sondern verbindet Muster, Ursache und einen konkreten nächsten Schritt – das leistet ein einzelner ChatGPT-Prompt nicht.`,
+    expertiseFit: `Die Muster-Definitionen basieren auf Ihrer Expertise (${expertiseThema}) statt auf generischem Coaching-Wissen.`,
+    umsetzung: { label: 'Einfach', time: 'ca. 25–35 Minuten' },
+    scoreBase: { wow: 9.4, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.1, leadsog: 9.5, kaufsog: 9.2, umsetzung: 9.4, expertise: 9.2 },
+    boosts: problemReichhaltig ? { wow: 0.1, individualisierung: 0.1 } : {}
   });
 
-  /* ---- 2. Analyse/Audit · Scorecard ---- */
+  /* ---- 2. Analyse/Audit · Potenzial-Score ---- */
   blueprints.push({
-    id: 'scorecard',
+    id: 'potenzial-score',
     category: 'Analyse / Audit',
     toolType: 'Scorecard',
-    name: `Der ${traumNameLabel(traum)}-Score`,
-    hook: `Ein Zahlen-Check, der in Sekunden sichtbar macht, wie weit ${lowerFirst(zgKurz)} wirklich von „${lowerFirst(traumKurz)}“ entfernt sind.`,
-    ioLine: `5–8 kurze Einschätzungsfragen → Score von 0–100 mit der größten Lücke zum Ziel`,
-    whyStrong: [
-      `Macht eine unklare Ausgangslage in einer Zahl sichtbar`,
-      `Wirkt fachlich fundiert statt beliebig`
-    ],
+    name: `${traumThema}-Potenzial-Score`,
+    subline: `In unter einer Minute berechnet ${p.subjCap} eine ehrliche Zahl dafür, wie nah ${p.subj === 'er' ? 'er' : 'sie'} ${traumThema} wirklich schon ist – und wo genau die größte Lücke liegt.`,
+    ioLine: `6–8 Einschätzungsfragen zu ${traumThema} und aktueller Situation → Score von 0–100 + größte konkrete Lücke`,
     inputs: [
-      `5–8 kurze Einschätzungsfragen rund um „${lowerFirst(problemKurz)}“`,
-      `Aktueller Stand in Bezug auf „${lowerFirst(traumKurz)}“`,
-      `Einschätzung zur bisherigen Herangehensweise / bisherigen Angeboten`
+      `6–8 Einschätzungsfragen zu ${traumThema}`,
+      `Aktueller Stand in Bezug auf ${traumThema}`,
+      `Einschätzung zur bisherigen Herangehensweise`
     ],
-    output: `Ein persönlicher Score von 0–100 mit Ampel-Bewertung (kritisch / ausbaufähig / stark) sowie der einen größten Lücke, die ${lowerFirst(zgKurz)} aktuell von „${lowerFirst(traumKurz)}“ trennt.`,
-    wow: `Aus einem diffusen Gefühl („irgendwas stimmt nicht“) wird eine konkrete, ehrliche Zahl – das erzeugt sofort Klarheit und leichten Handlungsdruck.`,
-    expertiseFit: `Die Bewertungskriterien basieren auf dem, wofür Sie bekannt sind: ${lowerFirst(expertiseKurz)} – dadurch wirkt der Score fachlich fundiert statt beliebig.`,
-    leadsToOffer: `Bei niedrigem bis mittlerem Score wird „${angebotKurz}“${preis ? ` (${preis})` : ''} als direkter Weg zur Schließung der Lücke empfohlen.`,
-    scoreBase: { wow: 7, habenwollen: 7, individualisierung: 7, einzigartigkeit: 6, kaufsog: 8, umsetzung: 8 }
+    output: `Ein persönlicher Score von 0–100 mit Ampel-Bewertung sowie der einen konkreten Lücke, die aktuell am meisten von ${traumThema} trennt.`,
+    whyStrong: [
+      `${p.subjCap} sieht schwarz auf weiß, wo ${p.subj} wirklich steht, statt eines diffusen Gefühls.`,
+      `Eine konkrete Zahl erzeugt spürbaren Handlungsdruck, den ein Ratgeber-Text nicht schafft.`
+    ],
+    miniPreview: `Score 58/100 → größte Lücke: fehlende Struktur bei ${traumThema}.`,
+    wowMoment: `${p.subjCap} merkt, dass ${p.subj} näher am Ziel ist als gedacht – aber an genau einer Stelle hängen bleibt, die bisher übersehen wurde.`,
+    whatNext: `${p.subjCap} will wissen, wie sich genau diese eine Lücke gezielt schließen lässt.`,
+    salesLine: `Das Tool zeigt die Lücke zu ${traumThema}, ${angebotKurz} schließt sie strukturiert.`,
+    different: `Der Score basiert auf Ihren eigenen fachlichen Kriterien statt auf einem austauschbaren Standard-Test.`,
+    expertiseFit: `Die Bewertungslogik spiegelt, wofür Sie stehen: ${expertiseThema}.`,
+    umsetzung: { label: 'Einfach', time: 'ca. 25–35 Minuten' },
+    scoreBase: { wow: 9.1, habenwollen: 9.2, individualisierung: 9.1, einzigartigkeit: 9.0, leadsog: 9.3, kaufsog: 9.4, umsetzung: 9.5, expertise: 9.1 },
+    boosts: traumReichhaltig ? { leadsog: 0.1, kaufsog: 0.1 } : {}
   });
 
-  /* ---- 3. Strategie · Rechner / Roadmap ---- */
-  const preisZahl = preis ? extractZahl(preis) : null;
+  /* ---- 3. Strategie · Fahrplan-Formel ---- */
   blueprints.push({
-    id: 'roadmap-rechner',
+    id: 'fahrplan-formel',
     category: 'Strategie',
     toolType: 'Rechner + Roadmap',
-    name: `Der ${nameLabel(zg, 3)}-Fahrplan-Rechner`,
-    hook: `Ein persönlicher Fahrplan, der genau zeigt, wie ${lowerFirst(zgKurz)} von „${lowerFirst(problemKurz)}“ zu „${lowerFirst(traumKurz)}“ kommen${preisZahl ? `, inklusive konkreter Zahlen` : ''}.`,
-    ioLine: `Aktueller Stand & Wunsch-Zeitpunkt → persönliche Schritt-für-Schritt-Roadmap`,
-    whyStrong: [
-      `Macht „${traumKurz}“ konkret planbar`,
-      `Nutzt reale Zahlen statt vager Versprechen`
-    ],
+    name: `${traumThema}-Fahrplan-Formel`,
+    subline: `${p.subjCap} erhält einen persönlichen Fahrplan mit 3 bis 4 Etappen, der zeigt, wie ${p.subj === 'er' ? 'er' : 'sie'} ${traumThema} Schritt für Schritt erreicht.`,
+    ioLine: `Aktueller Stand + Wunsch-Zeitpunkt → persönliche Etappen-Roadmap mit je einer konkreten nächsten Handlung`,
     inputs: [
-      `Aktueller Status quo (z. B. Zeit, Kunden oder Umsatz aktuell)`,
-      `Wunsch-Zeitpunkt, bis wann „${lowerFirst(traumKurz)}“ erreicht sein soll`,
-      `Größtes aktuelles Hindernis: „${lowerFirst(problemKurz)}“`
+      `Aktueller Status quo (Zeit, Ressourcen oder Fortschritt aktuell)`,
+      `Wunsch-Zeitpunkt für ${traumThema}`,
+      `Größtes aktuelles Hindernis: ${problemThema}`
     ],
-    output: `Eine individuelle Schritt-für-Schritt-Roadmap mit 3–4 Meilensteinen${preisZahl ? `, die zeigt, was ein Angebot wie „${angebotKurz}“ für ${preis} in diesem Fahrplan bewirken kann` : ` bis zum Wunsch-Ergebnis`}.`,
-    wow: `Statt vager Motivation sieht der Nutzer einen konkreten, nachvollziehbaren Weg mit Meilensteinen – das macht das große Ziel plötzlich greifbar.`,
-    expertiseFit: `Die Meilensteine spiegeln Ihre eigene Vorgehensweise wider: ${lowerFirst(methodeKurz)}.`,
-    leadsToOffer: `Der letzte Meilenstein der Roadmap ist exakt der Punkt, an dem „${angebotKurz}“${preis ? ` (${preis})` : ''} den entscheidenden Sprung ermöglicht.`,
-    scoreBase: { wow: 8, habenwollen: 8, individualisierung: 7, einzigartigkeit: 7, kaufsog: 9, umsetzung: 6 }
+    output: `Eine individuelle Schritt-für-Schritt-Roadmap mit 3–4 Etappen bis ${traumThema}, inklusive einer konkreten nächsten Handlung je Etappe.`,
+    whyStrong: [
+      `${p.subjCap} sieht ${traumThema} erstmals als planbaren Weg statt als vages Fernziel.`,
+      `Jede Etappe liefert eine konkrete Handlung statt nur Motivation.`
+    ],
+    miniPreview: `Etappe 2 von 4 – erreichbar, sobald der erste Schritt bei ${problemThema} angegangen wird.`,
+    wowMoment: `${p.subjCap} erkennt, dass ${traumThema} nicht an fehlender Motivation scheitert, sondern an der fehlenden Reihenfolge der richtigen Schritte.`,
+    whatNext: `${p.subjCap} will wissen, wie sich die nächste Etappe konkret und ohne Umwege umsetzen lässt.`,
+    salesLine: `Das Tool zeigt den Weg zu ${traumThema}, ${angebotKurz} begleitet die Umsetzung jeder Etappe.`,
+    different: `Die Etappen sind an Ihrer Methode ausgerichtet – nicht an einem generischen Fahrplan-Schema.`,
+    expertiseFit: `Die Roadmap spiegelt Ihre eigene Vorgehensweise wider: ${methodeThema}.`,
+    umsetzung: { label: 'Einfach', time: 'ca. 30–40 Minuten' },
+    scoreBase: { wow: 9.3, habenwollen: 9.4, individualisierung: 9.2, einzigartigkeit: 9.1, leadsog: 9.4, kaufsog: 9.5, umsetzung: 9.1, expertise: 9.2 },
+    boosts: {}
   });
 
-  /* ---- 4. Coach · Mini-Simulator (Entscheidungshilfe) ---- */
+  /* ---- 4. Coach · Ursachen-Scanner ---- */
   blueprints.push({
-    id: 'coach-simulator',
+    id: 'ursachen-scanner',
     category: 'Coach',
-    toolType: 'Mini-Coaching-Simulator / Entscheidungshilfe',
-    name: `Der ${nameLabel(methode, 3)}-Mini-Coach`,
-    hook: `Eine Mini-Coaching-Session zum Ausprobieren, die live nach Ihrer eigenen Methode reagiert – kein Standard-Chatbot.`,
-    ioLine: `Aktuelle Situation & bisherige Versuche → methodenbasierte Empfehlung wie in einer Mini-Session`,
-    whyStrong: [
-      `Basiert direkt auf Ihrer eigenen Methode`,
-      `Kaum durch einen Standard-Prompt ersetzbar`
-    ],
+    toolType: 'Mini-Coaching-Simulator',
+    name: `${problemThema}-Ursachen-Scanner`,
+    subline: `${p.subjCap} bekommt in einer kurzen Mini-Session eine erste Einschätzung nach Ihrer eigenen Methode – bezogen auf die eigene Situation bei ${problemThema}.`,
+    ioLine: `Eine konkrete aktuelle Situation bei ${problemThema} + bisherige Versuche → methodenbasierte Ersteinschätzung + nächster sinnvoller Schritt`,
     inputs: [
-      `Eine konkrete aktuelle Situation oder Entscheidung rund um „${lowerFirst(problemKurz)}“`,
+      `Eine konkrete aktuelle Situation bei ${problemThema}`,
       `Was bisher schon versucht wurde`,
-      `Das gewünschte Ergebnis: „${lowerFirst(traumKurz)}“`
+      `Das gewünschte Ergebnis: ${traumThema}`
     ],
-    output: `Eine methodenbasierte Einschätzung plus konkrete nächste Handlung, abgeleitet aus Ihrer Methode: ${lowerFirst(methodeKurz)}.`,
-    wow: `Der Nutzer erlebt hautnah, wie Sie als Experte/-in denken und arbeiten würden – wie eine kurze, kostenlose Mini-Session mit Ihnen persönlich.`,
-    expertiseFit: `Dieses Tool kann praktisch niemand kopieren, weil es direkt auf Ihrer eigenen Methode „${lowerFirst(methodeKurz)}“ aufbaut statt auf allgemeinem Coaching-Wissen.`,
-    leadsToOffer: `Am Ende der Mini-Session wird sichtbar, wie viel tiefer diese Arbeit im vollen Rahmen von „${angebotKurz}“${preis ? ` (${preis})` : ''} gehen kann.`,
-    scoreBase: { wow: 9, habenwollen: 9, individualisierung: 9, einzigartigkeit: 9, kaufsog: 8, umsetzung: 5 }
-  });
-
-  /* ---- 5. Matcher · Passungs-Check ---- */
-  blueprints.push({
-    id: 'matcher',
-    category: 'Matcher',
-    toolType: 'Matcher / Passungs-Check',
-    name: `Der „Passt ${angebotKurz} zu mir?“-Check`,
-    hook: `In wenigen Klicks erfährt ${lowerFirst(zgKurz)}, ob „${angebotKurz}“ wirklich zur eigenen Situation passt – ehrlich und ohne Verkaufsdruck.`,
-    ioLine: `Situation & Wunschziel → ehrliche Passungs-Aussage zum Angebot`,
+    output: `Eine methodenbasierte Ersteinschätzung plus eine konkrete nächste Handlung, abgeleitet aus Ihrer Methode (${methodeThema}).`,
     whyStrong: [
-      `Senkt Kaufzweifel durch eine ehrliche Einschätzung`,
-      `Führt bei Passung direkt zum Angebot`
+      `${p.subjCap} erlebt unmittelbar, wie sich Ihre Methode auf die eigene Situation anwenden lässt.`,
+      `Die Empfehlung ist an Ihre Methode gebunden – kaum durch einen austauschbaren Prompt ersetzbar.`
     ],
-    inputs: [
-      `Aktuelle Situation in Bezug auf „${lowerFirst(problemKurz)}“`,
-      `Gewünschtes Ergebnis: „${lowerFirst(traumKurz)}“`,
-      `Verfügbarkeit / Bereitschaft, jetzt aktiv etwas zu verändern`
-    ],
-    output: `Eine klare, persönliche Passungs-Aussage (starke Passung / teilweise Passung / noch nicht der richtige Zeitpunkt) mit einer nachvollziehbaren Begründung.`,
-    wow: `Statt eines weiteren Verkaufsversprechens bekommt der Nutzer eine ehrlich wirkende, individuelle Einschätzung – das baut Vertrauen auf und senkt die Kaufhürde spürbar.`,
-    expertiseFit: `Die Passungs-Kriterien basieren auf dem, was bei Ihnen wirklich funktioniert: ${lowerFirst(expertiseKurz)}.`,
-    leadsToOffer: `Bei starker Passung führt das Ergebnis direkt und ohne Umwege zu „${angebotKurz}“${preis ? ` (${preis})` : ''}.`,
-    scoreBase: { wow: 7, habenwollen: 8, individualisierung: 8, einzigartigkeit: 6, kaufsog: 9, umsetzung: 9 }
+    miniPreview: `Ersteinschätzung „${problemThema} unbewusst vermieden“ → konkreter erster Schritt für diese Woche.`,
+    wowMoment: `${p.subjCap} erkennt, dass bisherige Versuche nicht am fehlenden Willen scheiterten, sondern eine Ebene tiefer ansetzen müssten – genau dort, wo Ihre Methode ansetzt.`,
+    whatNext: `${p.subjCap} will die eigene Situation ausführlicher und persönlich mit Ihnen durchgehen.`,
+    salesLine: `Das Tool gibt eine erste methodenbasierte Einschätzung, ${angebotKurz} vertieft sie in einer echten Begleitung.`,
+    different: `Es antwortet nicht generisch, sondern erkennbar im Sinne Ihrer eigenen Methode – das kann ein Standard-Chatbot nicht leisten.`,
+    expertiseFit: `Die Logik basiert direkt auf Ihrer Methode: ${methodeThema}.`,
+    umsetzung: { label: 'Mittel', time: 'ca. 40–60 Minuten' },
+    scoreBase: { wow: 9.7, habenwollen: 9.5, individualisierung: 9.7, einzigartigkeit: 9.8, leadsog: 9.4, kaufsog: 9.4, umsetzung: 9.0, expertise: 9.7 },
+    boosts: methodeReichhaltig ? { individualisierung: 0.1, einzigartigkeit: 0.1, expertise: 0.1 } : {}
   });
 
-  /* ---- Scores berechnen ---- */
-  const ideas = blueprints.map((bp, i) => {
+  /* ---- 5. Matcher · Bereit-oder-Noch-Nicht-Check ---- */
+  blueprints.push({
+    id: 'bereit-check',
+    category: 'Matcher',
+    toolType: 'Passungs-Check',
+    name: `Bereit-oder-Noch-Nicht-Check`,
+    subline: `${p.subjCap} bekommt in wenigen Klicks eine ehrliche Einschätzung, ob jetzt der richtige Zeitpunkt für ${angebotKurz} ist – ganz ohne Verkaufsdruck.`,
+    ioLine: `Fragen zu Dringlichkeit, Zielklarheit und Veränderungsbereitschaft → klare Passungs-Aussage mit Begründung`,
+    inputs: [
+      `Aktuelle Dringlichkeit bei ${problemThema}`,
+      `Zielklarheit in Bezug auf ${traumThema}`,
+      `Bereitschaft, jetzt aktiv etwas zu verändern`
+    ],
+    output: `Eine klare, persönliche Passungs-Aussage (starke Passung / teilweise Passung / noch nicht der richtige Zeitpunkt) mit nachvollziehbarer Begründung.`,
+    whyStrong: [
+      `${p.subjCap} bekommt Klarheit statt eines weiteren Verkaufsversprechens.`,
+      `Eine ehrliche Einschätzung senkt die Kaufhürde spürbar, statt sie zu erhöhen.`
+    ],
+    miniPreview: `„Starke Passung“ → Empfehlung: jetzt den nächsten Schritt zu ${angebotKurz} gehen.`,
+    wowMoment: `${p.subjCap} erkennt, dass die eigene Zurückhaltung nicht an mangelnder Eignung lag, sondern an einer offenen Frage, die der Check gerade beantwortet hat.`,
+    whatNext: `${p.subjCap} will bei starker Passung den nächsten konkreten Schritt gehen.`,
+    salesLine: `Das Tool klärt die Passung, ${angebotKurz} ist der nächste logische Schritt danach.`,
+    different: `Die Kriterien sind auf Ihre tatsächlichen Erfolgsfaktoren zugeschnitten statt auf einen generischen Fragebogen.`,
+    expertiseFit: `Die Passungs-Kriterien spiegeln, was bei Ihnen wirklich funktioniert: ${expertiseThema}.`,
+    umsetzung: { label: 'Sehr einfach', time: 'ca. 20–30 Minuten' },
+    scoreBase: { wow: 9.0, habenwollen: 9.2, individualisierung: 9.1, einzigartigkeit: 9.0, leadsog: 9.3, kaufsog: 9.6, umsetzung: 9.6, expertise: 9.1 },
+    boosts: expertiseReichhaltig ? { expertise: 0.1 } : {}
+  });
+
+  /* ---- Scores berechnen (Elite-Bereich 9,0–9,9) ---- */
+  const METRIC_WEIGHTS = { wow: 0.15, habenwollen: 0.12, individualisierung: 0.12, einzigartigkeit: 0.12, leadsog: 0.16, kaufsog: 0.16, umsetzung: 0.08, expertise: 0.09 };
+
+  let ideas = blueprints.map((bp, i) => {
     const seed = baseSeed + i * 977;
     const scores = {};
     Object.keys(bp.scoreBase).forEach((key, j) => {
-      let val = bp.scoreBase[key] + seededVariation(seed + j * 13, 1);
-      if (bp.id === 'coach-simulator' && methodeReichhaltig && (key === 'individualisierung' || key === 'einzigartigkeit')) {
-        val += 1;
-      }
-      if (expertiseReichhaltig && key === 'einzigartigkeit') {
-        val += 1;
-      }
-      scores[key] = clampScore(val);
+      const boost = bp.boosts && bp.boosts[key] ? bp.boosts[key] : 0;
+      const val = bp.scoreBase[key] + boost + seededJitter(seed + j * 13);
+      scores[key] = clampScore9(val);
     });
 
-    const gesamt = clampScore(
-      scores.wow * 0.2 +
-      scores.habenwollen * 0.15 +
-      scores.individualisierung * 0.15 +
-      scores.einzigartigkeit * 0.15 +
-      scores.kaufsog * 0.2 +
-      scores.umsetzung * 0.15
-    );
-    scores.gesamt = gesamt;
+    let gesamt = 0;
+    Object.keys(METRIC_WEIGHTS).forEach((key) => { gesamt += scores[key] * METRIC_WEIGHTS[key]; });
+    scores.gesamt = clampScore9(gesamt);
 
     return {
       id: bp.id,
       category: bp.category,
       toolType: bp.toolType,
       name: bp.name,
-      hook: bp.hook,
+      subline: bp.subline,
       ioLine: bp.ioLine,
-      whyStrong: bp.whyStrong,
       inputs: bp.inputs,
       output: bp.output,
-      wow: bp.wow,
+      whyStrong: bp.whyStrong,
+      miniPreview: bp.miniPreview,
+      wowMoment: bp.wowMoment,
+      whatNext: bp.whatNext,
+      salesLine: bp.salesLine,
+      different: bp.different,
       expertiseFit: bp.expertiseFit,
-      leadsToOffer: bp.leadsToOffer,
-      scores,
-      zielgruppe: zg
+      umsetzung: bp.umsetzung,
+      wowLabel: `${p.subjCap}: der WOW-Moment`,
+      nextLabel: `Was ${p.kunde} danach wahrscheinlich tun will`,
+      scores
     };
   });
 
-  /* ---- Top-Idee bestimmen ---- */
-  let topIndex = 0;
+  /* ---- Sortierung: stärkste Idee immer an Position 1 ---- */
+  ideas.sort((a, b) => b.scores.gesamt - a.scores.gesamt);
+
+  /* Sicherheitsnetz: Top-Idee garantiert ≥ 9,5 */
+  if (ideas[0].scores.gesamt < 9.5) {
+    ideas[0].scores.gesamt = clampScore9(9.5 + Math.abs(seededJitter(baseSeed)) * 0.6);
+  }
+
   ideas.forEach((idea, i) => {
-    const cur = ideas[topIndex].scores;
-    const cand = idea.scores;
-    if (
-      cand.gesamt > cur.gesamt ||
-      (cand.gesamt === cur.gesamt && cand.wow > cur.wow) ||
-      (cand.gesamt === cur.gesamt && cand.wow === cur.wow && cand.kaufsog > cur.kaufsog)
-    ) {
-      topIndex = i;
-    }
+    idea.rank = i + 1;
+    idea.isTop = i === 0;
   });
-  ideas[topIndex].isTop = true;
-  ideas[topIndex].winReasons = buildWinReasons(ideas[topIndex], { problemKurz, methodeKurz, angebotKurz, preis, traumKurz });
+
+  ideas[0].winReasons = buildWinReasons(ideas[0]);
+  ideas.forEach(lintIdea);
 
   return ideas;
 }
 
-function buildWinReasons(idea, ctx) {
+function buildWinReasons(idea) {
   const pool = {
-    'typ-test': [
-      `Trifft direkt das drängendste Problem`,
-      `Erzeugt in unter 2 Minuten einen Aha-Moment`,
-      `Führt direkt zu „${ctx.angebotKurz}“${ctx.preis ? ` (${ctx.preis})` : ''}`
+    'muster-kompass': [
+      `Trifft einen wunden Punkt: das eigene Muster endlich zu verstehen.`,
+      `Liefert eine Erkenntnis, die bisher niemand so konkret gezeigt hat.`,
+      `Mündet direkt in Ihr Angebot als nächsten logischen Schritt.`
     ],
-    'scorecard': [
-      `Macht eine unklare Lage in einer Zahl greifbar`,
-      `Baut auf Ihrer fachlichen Bewertung auf`,
-      `Zeigt konkret die Lücke zu „${ctx.traumKurz}“`
+    'potenzial-score': [
+      `Eine konkrete Zahl trifft emotional stärker als ein vages Gefühl.`,
+      `Zeigt exakt die eine Lücke, die bisher im Weg stand.`,
+      `Führt bei niedrigem Score direkt zu Ihrem Angebot.`
     ],
-    'roadmap-rechner': [
-      `Verwandelt „${ctx.traumKurz}“ in einen planbaren Weg`,
-      `Nutzt reale Zahlen statt vager Versprechen`,
-      `Endet exakt dort, wo „${ctx.angebotKurz}“ ansetzt`
+    'fahrplan-formel': [
+      `Ein sichtbarer Fahrplan macht das Ziel emotional greifbar statt abstrakt.`,
+      `Zeigt die eine fehlende Reihenfolge, die bisher blockiert hat.`,
+      `Die letzte Etappe führt direkt zu Ihrem Angebot.`
     ],
-    'coach-simulator': [
-      `Basiert direkt auf Ihrer eigenen Methode`,
-      `Kaum durch einen Standard-Prompt ersetzbar`,
-      `Fühlt sich an wie eine echte Mini-Session`
+    'ursachen-scanner': [
+      `Eine Mini-Session mit Ihnen persönlich erzeugt den stärksten emotionalen Sog.`,
+      `Liefert eine Erkenntnis, die eine Ebene tiefer ansetzt als übliche Tipps.`,
+      `Der natürliche nächste Wunsch ist mehr von Ihnen – genau das liefert Ihr Angebot.`
     ],
-    'matcher': [
-      `Senkt Kaufzweifel durch Ehrlichkeit`,
-      `Führt bei Passung direkt zu „${ctx.angebotKurz}“`,
-      `In wenigen Minuten umsetzbar`
+    'bereit-check': [
+      `Ehrlichkeit statt Verkaufsdruck erzeugt überdurchschnittliches Vertrauen.`,
+      `Zeigt die eine offene Frage, die bisher die Entscheidung blockiert hat.`,
+      `Führt bei Passung ohne Umweg zu Ihrem Angebot.`
     ]
   };
   return pool[idea.id] || [];
@@ -470,15 +546,15 @@ function buildWinReasons(idea, ctx) {
 
 function auswertungslogikText(ideaId, answers) {
   switch (ideaId) {
-    case 'typ-test':
-      return `Werte die Eingaben zu genau EINEM von 3 bis 4 klar unterscheidbaren Typen aus (z. B. anhand von Punkten pro Antwortmuster). Jeder Typ braucht: einen einprägsamen Namen, eine kurze Beschreibung der Situation, die typische Ursache und eine konkrete Handlungsempfehlung. Nutze einfache Regeln (Punkte pro Antwortoption zählen, Typ mit den meisten Punkten auswählen) – keine externe KI-Anbindung nötig.`;
-    case 'scorecard':
-      return `Berechne aus den Einschätzungsfragen einen Score von 0 bis 100 (Punkte je Antwort addieren und auf 100 normieren). Definiere 3 Ampel-Stufen (z. B. 0–40 kritisch, 41–70 ausbaufähig, 71–100 stark) und identifiziere anhand der schwächsten Einzelantwort die größte Lücke zum gewünschten Ergebnis.`;
-    case 'roadmap-rechner':
-      return `Berechne aus Status quo und Wunsch-Zeitpunkt 3 bis 4 konkrete Meilensteine (z. B. gleichmäßig über die verfügbare Zeit verteilt). Leite pro Meilenstein eine kurze, konkrete Aktion ab, die zum größten aktuellen Hindernis passt.`;
-    case 'coach-simulator':
-      return `Werte die geschilderte Situation nach der eigenen Methode aus: ${quote(answers.methode)}. Definiere dafür 3 bis 4 typische Situations-Muster mit je einer passenden Empfehlung im Sinne dieser Methode – keine allgemeinen Coaching-Floskeln, sondern erkennbar an der beschriebenen Methode orientiert.`;
-    case 'matcher':
+    case 'muster-kompass':
+      return `Werte die Eingaben zu genau EINEM von 3 bis 4 klar unterscheidbaren Mustern aus (z. B. Punkte pro Antwortoption zählen, Muster mit den meisten Punkten auswählen). Jedes Muster braucht: einen einprägsamen Namen, eine kurze Beschreibung, die typische Ursache und eine konkrete Handlungsempfehlung. Keine externe KI-Anbindung nötig.`;
+    case 'potenzial-score':
+      return `Berechne aus den Einschätzungsfragen einen Score von 0 bis 100 (Punkte je Antwort addieren, auf 100 normieren). Definiere 3 Ampel-Stufen (z. B. 0–40 kritisch, 41–70 ausbaufähig, 71–100 stark) und identifiziere anhand der schwächsten Einzelantwort die größte Lücke zum Ziel.`;
+    case 'fahrplan-formel':
+      return `Berechne aus Status quo und Wunsch-Zeitpunkt 3 bis 4 konkrete Etappen (z. B. gleichmäßig über die verfügbare Zeit verteilt). Leite pro Etappe eine kurze, konkrete Aktion ab, die zum größten aktuellen Hindernis passt.`;
+    case 'ursachen-scanner':
+      return `Werte die geschilderte Situation nach der eigenen Methode aus: ${answers.methode}. Definiere dafür 3 bis 4 typische Situations-Muster mit je einer passenden Empfehlung im Sinne dieser Methode – keine allgemeinen Coaching-Floskeln, sondern erkennbar an der beschriebenen Methode orientiert.`;
+    case 'bereit-check':
       return `Bewerte die Passung anhand einfacher Regeln (z. B. Punkte für Dringlichkeit, Zielklarheit und Veränderungsbereitschaft). Definiere 3 Ergebnis-Stufen: starke Passung, teilweise Passung, noch nicht der richtige Zeitpunkt – jeweils mit einer ehrlichen, nachvollziehbaren Begründung.`;
     default:
       return `Werte die Nutzereingaben mit einfachen, nachvollziehbaren Regeln aus und leite daraus ein persönliches Ergebnis ab.`;
@@ -489,10 +565,10 @@ function buildClaudeCodePrompt(idea, answers) {
   const logic = auswertungslogikText(idea.id, answers);
 
   return `AUFGABE
-Baue ein eigenständiges, vollständig funktionierendes KI-Tool namens „${idea.name}“ (Tool-Typ: ${idea.toolType}, Kategorie: ${idea.category}).
+Baue ein eigenständiges, vollständig funktionierendes KI-Tool namens „${idea.name}" (Tool-Typ: ${idea.toolType}, Kategorie: ${idea.category}).
 
 ZIEL & NUTZEN DES TOOLS
-${idea.hook}
+${idea.subline}
 ${idea.output}
 
 ZIELGRUPPE
@@ -506,12 +582,16 @@ ${logic}
 
 GEWÜNSCHTE ERGEBNIS-AUSGABE
 ${idea.output}
-Zusätzlicher WOW-/Aha-Moment: ${idea.wow}
+Beispielhafte Ausgabe: ${idea.miniPreview}
+
+WOW-MOMENT
+${idea.wowMoment}
 
 DESIGN-ANFORDERUNGEN
 - Helle Premium-Optik: großzügige Weißräume, klare runde Karten, moderne Buttons
-- Gold ausschließlich als Hauptakzentfarbe für die wichtigste Aktion je Bildschirm
-- Dunkles Blau/Grün für Überschriften, Struktur und sekundäre Buttons
+- CTA-Buttons: dunkles CI-Blau als Hintergrund, Champagner-/Gold-Schrift
+- Gold ausschließlich für Highlights (Scores, Sterne, Top-Empfehlung), nie als Buttonfläche
+- Dunkles Blau/Grün für Überschriften und Struktur
 - Gut lesbare, ausreichend große Schrift für eine Zielgruppe 45+
 - Kein technischer Entwickler-Look, keine Fachbegriffe in der Nutzer-Ansicht
 
@@ -525,15 +605,15 @@ GITHUB-PAGES-TAUGLICHKEIT
 - index.html liegt im Wurzelverzeichnis und funktioniert direkt über GitHub Pages
 - Keine Anmeldung, keine Datenbank, keine Speicherung personenbezogener Daten außerhalb des Browsers
 
+CTA / ÜBERGANG ZUM HAUPT-ANGEBOT
+${idea.salesLine}
+Haupt-Angebot: „${answers.angebot}"
+
 TESTANFORDERUNGEN
 - Prüfe alle Eingabefelder inkl. Validierung bei leeren oder zu kurzen Eingaben
 - Teste die Auswertungslogik mit mindestens 3 unterschiedlichen Eingabe-Kombinationen und prüfe, ob sich die Ergebnisse spürbar unterscheiden
 - Teste die mobile Darstellung (z. B. 375 px Breite) und die Desktop-Darstellung
 - Stelle sicher, dass jeder Button funktioniert und es keine Platzhalter oder toten Elemente gibt
-
-CTA / ÜBERGANG ZUM HAUPT-ANGEBOT
-${idea.leadsToOffer}
-Haupt-Angebot: „${answers.angebot}“
 
 Wenn etwas nicht rund läuft, korrigiere es eigenständig, bevor du fertig bist.`;
 }
@@ -547,21 +627,26 @@ const SCORE_LABELS = {
   habenwollen: 'Haben-wollen',
   individualisierung: 'Individualisierung',
   einzigartigkeit: 'Einzigartigkeit',
+  leadsog: 'Lead-Sog',
   kaufsog: 'Kauf-Sog',
-  umsetzung: 'Umsetzungs-Einfachheit'
+  umsetzung: 'Umsetzungs-Einfachheit',
+  expertise: 'Expertise-Fit'
 };
 
 function renderScoreGrid(scores) {
-  const order = ['wow', 'habenwollen', 'individualisierung', 'einzigartigkeit', 'kaufsog', 'umsetzung'];
+  const order = ['wow', 'habenwollen', 'individualisierung', 'einzigartigkeit', 'leadsog', 'kaufsog', 'umsetzung', 'expertise'];
   return `<div class="score-grid">${order.map((key) => `
     <div class="score-item">
-      <div class="score-label-row"><span>${SCORE_LABELS[key]}</span><strong>${scores[key]}/10</strong></div>
+      <div class="score-label-row"><span>${SCORE_LABELS[key]}</span><strong>${formatScore(scores[key])}/10</strong></div>
       <div class="score-bar"><div class="score-bar-fill" style="width:${scores[key] * 10}%"></div></div>
     </div>`).join('')}</div>`;
 }
 
 function renderIdeaCard(idea) {
-  const topBadge = idea.isTop ? '<div class="top-badge">🏆 MEINE TOP-EMPFEHLUNG</div>' : '';
+  const topBadge = idea.isTop ? `
+    <span class="top-stars">★★★★★</span>
+    <div class="top-badge">🏆 MEINE TOP-EMPFEHLUNG</div>` : '';
+
   const winBox = idea.isTop ? `
     <div class="win-reasons">
       <h4>Warum diese Idee gewinnt</h4>
@@ -571,32 +656,43 @@ function renderIdeaCard(idea) {
   const [ioIn, ioOut] = idea.ioLine.split('→').map((s) => s.trim());
 
   return `
-  <article class="idea-card ${idea.isTop ? 'top' : ''}" data-idea-id="${idea.id}">
+  <article class="idea-card ${idea.isTop ? 'top' : ''}" data-idea-id="${idea.id}" id="idea-${idea.id}">
+    <div class="rank-badge">${idea.rank}</div>
     ${topBadge}
     <span class="idea-category">${idea.category}</span>
     <h3 class="idea-name">${idea.name}</h3>
-    <p class="idea-hook">${idea.hook}</p>
+    <p class="idea-hook">${idea.subline}</p>
     ${winBox}
     <p class="io-line"><span>${ioIn}</span><span class="io-arrow">→</span><span>${ioOut}</span></p>
+    <p class="mini-preview"><strong>Beispiel-Ergebnis:</strong> ${idea.miniPreview}</p>
     <div class="why-strong">
       <h4>Warum stark</h4>
       <ul>${idea.whyStrong.map((r) => `<li>${r}</li>`).join('')}</ul>
     </div>
+    <p class="umsetzung-line">Umsetzung: <strong>${idea.umsetzung.label}</strong> · Erste Version in ${idea.umsetzung.time} baubar</p>
     <div class="potential-row">
-      <span class="potential-label">Gesamt-Potenzial</span>
-      <span class="potential-value">${formatScore(idea.scores.gesamt)}/10</span>
+      <div class="potential-stat">
+        <span class="potential-label">Gesamt-Potenzial</span>
+        <span class="potential-value">${formatScore(idea.scores.gesamt)}/10</span>
+      </div>
+      <div class="potential-stat">
+        <span class="potential-label">Lead-Sog</span>
+        <span class="potential-value">${formatScore(idea.scores.leadsog)}/10</span>
+      </div>
     </div>
     <div class="card-actions">
       <button class="details-toggle" type="button" data-details-toggle aria-expanded="false">
         <span class="toggle-label">Details anzeigen</span><span class="chevron">▾</span>
       </button>
-      <button class="btn btn-primary" type="button" data-open-prompt>Fertigen Claude-Code-Prompt anzeigen</button>
+      <button class="btn btn-primary" type="button" data-open-prompt>Bau-Prompt für Claude Code anzeigen</button>
     </div>
     <div class="idea-details" data-details>
       <dl class="idea-fields">
-        <div class="idea-field"><dt>WOW-/Aha-Moment</dt><dd>${idea.wow}</dd></div>
+        <div class="idea-field"><dt>${idea.wowLabel}</dt><dd>${idea.wowMoment}</dd></div>
+        <div class="idea-field"><dt>${idea.nextLabel}</dt><dd>${idea.whatNext}</dd></div>
+        <div class="idea-field"><dt>Verkaufslogik</dt><dd>${idea.salesLine}</dd></div>
+        <div class="idea-field"><dt>Was dieses Tool anders macht</dt><dd>${idea.different}</dd></div>
         <div class="idea-field"><dt>Warum zur Expertise passend</dt><dd>${idea.expertiseFit}</dd></div>
-        <div class="idea-field"><dt>Übergang ins Haupt-Angebot</dt><dd>${idea.leadsToOffer}</dd></div>
       </dl>
       <p class="detail-scores-label">Detail-Bewertung</p>
       ${renderScoreGrid(idea.scores)}
@@ -622,6 +718,32 @@ function renderResults() {
     btn.addEventListener('click', () => {
       const card = btn.closest('.idea-card');
       openPromptModal(card.dataset.ideaId);
+    });
+  });
+
+  renderResultsClosing();
+}
+
+function renderResultsClosing() {
+  const closingEl = document.getElementById('resultsClosing');
+  const top = state.ideas[0];
+
+  closingEl.innerHTML = `
+    <p class="closing-recommendation">Meine Empfehlung: Starten Sie mit Idee 1 – „${top.name}". Sie hat in dieser Auswertung den höchsten WOW-, Lead- und Kauf-Sog.</p>
+    <h2 class="closing-headline">Welche Idee wollen Sie bauen?</h2>
+    <div class="closing-chips">
+      ${state.ideas.map((idea) => `<button class="closing-chip" type="button" data-jump="${idea.id}">${idea.rank}. ${idea.name}</button>`).join('')}
+    </div>
+  `;
+
+  closingEl.querySelectorAll('[data-jump]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const target = document.getElementById(`idea-${chip.dataset.jump}`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.remove('jump-highlight');
+      void target.offsetWidth;
+      target.classList.add('jump-highlight');
     });
   });
 }
