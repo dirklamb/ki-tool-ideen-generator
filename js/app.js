@@ -71,6 +71,8 @@ function showScreen(index) {
     progressWrap.hidden = true;
   }
 
+  document.getElementById('resultsTopline').hidden = id !== 'screen-results';
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -210,6 +212,10 @@ const THEME_KEYWORDS = [
   [/gewohnheit/i, 'Gewohnheiten'],
   [/muster/i, 'Muster'],
   [/entscheidung/i, 'Entscheidung'],
+  [/kontrolle|kontrollier/i, 'Kontrollverhalten'],
+  [/eigenverantwortung/i, 'Eigenverantwortung'],
+  [/delegier/i, 'Delegation'],
+  [/mikromanage/i, 'Mikromanagement'],
   /* Strukturelle/fachliche Themen als zweite Priorität */
   [/erzieh/i, 'Erziehung'],
   [/grenzen/i, 'Grenzen'],
@@ -228,13 +234,22 @@ const THEME_KEYWORDS = [
 
 const CAP_PRONOUNS = new Set(['Sie', 'Ihre', 'Ihr', 'Ihren', 'Ihrem', 'Ihrer', 'Der', 'Die', 'Das', 'Dass']);
 
+/* Personen-/Rollen-Substantive eignen sich grammatisch nicht als abstraktes
+   Thema (z. B. "bei Mitarbeiter" statt "bei Stress") — der Fallback
+   überspringt sie und sucht das nächste, besser passende Substantiv. */
+const PERSON_NOUNS = new Set([
+  'Mitarbeiter', 'Mitarbeiterin', 'Mitarbeiterinnen', 'Kollegen', 'Kollegin', 'Kolleginnen',
+  'Chef', 'Chefin', 'Chefs', 'Kinder', 'Kind', 'Partner', 'Partnerin', 'Eltern', 'Freunde',
+  'Freundin', 'Familie', 'Angestellte', 'Angestellten', 'Vorgesetzte', 'Vorgesetzten'
+]);
+
 /* Deutsche Substantive werden großgeschrieben — nutzt das, um ohne
    NLU einen plausiblen Kern-Begriff als Fallback zu erraten. */
 function capitalNounGuess(text) {
   const words = text.replace(/[„""]/g, '').split(/\s+/);
   for (let i = 1; i < words.length; i++) {
     const w = words[i].replace(/[.,!?;:]+$/, '');
-    if (w.length > 3 && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w) && !CAP_PRONOUNS.has(w)) {
+    if (w.length > 3 && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w) && !CAP_PRONOUNS.has(w) && !PERSON_NOUNS.has(w)) {
       return w;
     }
   }
@@ -427,7 +442,7 @@ function buildIdeas(answers) {
     id: 'bereit-check',
     category: 'Matcher',
     toolType: 'Passungs-Check',
-    name: `Bereit-oder-Noch-Nicht-Check`,
+    name: `${traumThema}-Bereitschafts-Check`,
     subline: `${p.subjCap} bekommt in wenigen Klicks eine ehrliche Einschätzung, ob jetzt der richtige Zeitpunkt für ${angebotKurz} ist – ganz ohne Verkaufsdruck.`,
     ioLine: `Fragen zu Dringlichkeit, Zielklarheit und Veränderungsbereitschaft → klare Passungs-Aussage mit Begründung`,
     inputs: [
@@ -657,10 +672,9 @@ function renderIdeaCard(idea) {
 
   return `
   <article class="idea-card ${idea.isTop ? 'top' : ''}" data-idea-id="${idea.id}" id="idea-${idea.id}">
-    <div class="rank-badge">${idea.rank}</div>
     ${topBadge}
     <span class="idea-category">${idea.category}</span>
-    <h3 class="idea-name">${idea.name}</h3>
+    <h3 class="idea-name"><span class="idea-rank">#${idea.rank}:</span> ${idea.name}</h3>
     <p class="idea-hook">${idea.subline}</p>
     ${winBox}
     <p class="io-line"><span>${ioIn}</span><span class="io-arrow">→</span><span>${ioOut}</span></p>
@@ -729,10 +743,10 @@ function renderResultsClosing() {
   const top = state.ideas[0];
 
   closingEl.innerHTML = `
-    <p class="closing-recommendation">Meine Empfehlung: Starten Sie mit Idee 1 – „${top.name}". Sie hat in dieser Auswertung den höchsten WOW-, Lead- und Kauf-Sog.</p>
+    <p class="closing-recommendation">Meine Empfehlung: Starten Sie mit Idee #1 – „${top.name}". Sie hat den höchsten WOW-, Lead- und Kauf-Sog.</p>
     <h2 class="closing-headline">Welche Idee wollen Sie bauen?</h2>
     <div class="closing-chips">
-      ${state.ideas.map((idea) => `<button class="closing-chip" type="button" data-jump="${idea.id}">${idea.rank}. ${idea.name}</button>`).join('')}
+      ${state.ideas.map((idea) => `<button class="closing-chip" type="button" data-jump="${idea.id}">#${idea.rank}: ${idea.name}</button>`).join('')}
     </div>
   `;
 
@@ -756,7 +770,7 @@ function openPromptModal(ideaId) {
   const idea = state.ideas.find((i) => i.id === ideaId);
   if (!idea) return;
 
-  document.getElementById('promptModalTitle').textContent = `Bau-Prompt: ${idea.name}`;
+  document.getElementById('promptModalTitle').textContent = `Bau-Prompt: #${idea.rank} ${idea.name}`;
   document.getElementById('copyFeedback').hidden = true;
   document.getElementById('copyFeedback').textContent = '';
 

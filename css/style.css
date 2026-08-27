@@ -16,9 +16,11 @@
   --accent-dark: #8C6A22;
   --accent-soft: #F1E6CC;
 
-  --champagne: #EFDDAF;     /* Champagner-Gold — Schrift auf dunklen CTA-Buttons */
+  --champagne: #EFDDAF;     /* Champagner-Gold — Schrift auf CTA-Buttons */
 
-  --navy: #2F4A44;          /* dunkles Blau/Grün — Struktur, Überschriften, CTA-Buttons */
+  --ci-blue: #016E8E;       /* exaktes CI-Blau — ausschließlich für primäre CTA-Buttons & Top-Bar */
+
+  --navy: #2F4A44;          /* dunkles Blau/Grün — Struktur, Überschriften, sekundäre Elemente */
   --navy-dark: #1F332E;
   --navy-soft: #E4ECE9;
 
@@ -196,9 +198,9 @@ body.modal-open { overflow: hidden; }
 
 .btn:active { transform: scale(0.98); }
 
-/* Primär: dunkles CI-Blau mit Champagner-Gold-Schrift — die wichtigste Aktion je Screen/Karte */
+/* Primär: exaktes CI-Blau (#016E8E) mit Champagner-Gold-Schrift — die wichtigste Aktion je Screen/Karte */
 .btn-primary {
-  background: linear-gradient(135deg, var(--navy-dark), var(--navy));
+  background: var(--ci-blue);
   color: var(--champagne);
   box-shadow: var(--shadow-md);
 }
@@ -353,13 +355,17 @@ body.modal-open { overflow: hidden; }
 
 /* ---------------- Ergebnisse ---------------- */
 
+/* Bündig ganz oben, volle Breite, exaktes CI-Blau — wie eine Premium-Top-Bar.
+   Liegt als erstes Element vor #app, damit kein Padding eine Lücke erzeugt. */
 .results-topline {
-  height: 4px;
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-bottom: clamp(28px, 6vw, 44px);
-  background: linear-gradient(90deg, var(--navy-dark), var(--navy) 50%, var(--navy-dark));
+  display: block;
+  height: 6px;
+  width: 100%;
+  margin: 0;
+  background: var(--ci-blue);
 }
+
+.results-topline[hidden] { display: none; }
 
 .results-header {
   text-align: center;
@@ -401,26 +407,11 @@ body.modal-open { overflow: hidden; }
   background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-card) 200px);
 }
 
-.rank-badge {
-  position: absolute;
-  top: clamp(18px, 3vw, 26px);
-  right: clamp(18px, 3vw, 26px);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--navy-soft);
-  color: var(--navy-dark);
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 1.15rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.idea-card.top .rank-badge {
-  background: var(--accent);
-  color: #fff;
+/* Nummerierung — groß und direkt mit dem Titel verbunden, kein Badge */
+.idea-rank {
+  color: var(--accent-dark);
+  margin-right: 0.15em;
+  white-space: nowrap;
 }
 
 .top-stars {
@@ -460,9 +451,10 @@ body.modal-open { overflow: hidden; }
 
 .idea-name {
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.6vw, 1.55rem);
-  margin: 0 50px 10px 0;
-  line-height: 1.25;
+  font-weight: 800;
+  font-size: clamp(1.5rem, 3.4vw, 1.95rem);
+  margin: 0 0 10px;
+  line-height: 1.2;
   color: var(--navy-dark);
 }
 
@@ -901,6 +893,4 @@ body.modal-open { overflow: hidden; }
   .card-actions { flex-direction: column-reverse; align-items: stretch; }
   .card-actions .btn { width: 100%; }
   .potential-row { grid-template-columns: 1fr; }
-  .rank-badge { width: 34px; height: 34px; font-size: 1rem; }
-  .idea-name { margin-right: 44px; }
 }

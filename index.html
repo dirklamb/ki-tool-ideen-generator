@@ -14,6 +14,9 @@
 
 <div class="app-shell">
 
+  <!-- Top-Bar in CI-Blau — nur auf der Auswertungsseite sichtbar, bündig ganz oben -->
+  <div class="results-topline" id="resultsTopline" aria-hidden="true" hidden></div>
+
   <!-- Progress Bar (nur während der 6 Fragen sichtbar) -->
   <div class="progress-wrap" id="progressWrap" hidden>
     <div class="progress-track">
@@ -157,8 +160,6 @@
 
     <!-- ============ ERGEBNISSE ============ -->
     <section class="screen" id="screen-results" data-screen>
-      <div class="results-topline" aria-hidden="true"></div>
-
       <div class="results-header">
         <p class="eyebrow">Ihre persönliche Auswertung</p>
         <h2 class="results-headline">Ihre 5 stärksten KI-Tool-Ideen</h2>
