@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KI-Tool-Ideen-Generator – Entdecken Sie Ihre 5 besten KI-Tool-Ideen</title>
+<meta name="description" content="Entdecken Sie in wenigen Minuten 5 außergewöhnliche KI-Tool-Ideen, die Ihre Expertise erlebbar machen, Wunsch-Kunden begeistern und Lust auf mehr erzeugen.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- Progress Bar (nur während der Fragen sichtbar) -->
+  <div class="progress-wrap" id="progressWrap" hidden>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <p class="progress-label" id="progressLabel">Frage 1 von 7</p>
+  </div>
+
+  <main id="app">
+
+    <!-- ============ STARTSEITE ============ -->
+    <section class="screen active" id="screen-start" data-screen>
+      <div class="hero">
+        <p class="eyebrow">Für Berater, Coaches, Heiler &amp; Experten</p>
+        <h1 class="hero-headline">Welche KI-Tools könnten Ihre&nbsp;Wunsch-Kunden lieben?</h1>
+        <p class="hero-subline">Entdecken Sie in wenigen Minuten 5 außergewöhnliche KI-Tool-Ideen, die Ihre Expertise erlebbar machen, Wunsch-Kunden begeistern und Lust auf mehr erzeugen.</p>
+        <button class="btn btn-primary btn-large" id="btnStart" type="button">Meine KI-Tool-Ideen entdecken</button>
+        <p class="hero-hint">Dauert ca. 4–6 Minuten · Keine Anmeldung · Ihre Angaben bleiben in Ihrem Browser</p>
+      </div>
+
+      <div class="hero-cards" aria-hidden="true">
+        <div class="mini-card">🔍 Diagnose</div>
+        <div class="mini-card">🧭 Strategie</div>
+        <div class="mini-card">✨ Generator</div>
+        <div class="mini-card">🤝 Matcher</div>
+        <div class="mini-card">🎯 Coach</div>
+      </div>
+    </section>
+
+    <!-- ============ FRAGE 1 ============ -->
+    <section class="screen" id="screen-q1" data-screen data-question="1">
+      <form class="question-form" data-form>
+        <h2 class="question-title">Für wen möchten Sie Ihr KI-Tool bauen?</h2>
+        <p class="question-hint">Beschreiben Sie Ihre Wunsch-Kunden so konkret wie möglich.</p>
+        <textarea class="question-input" name="zielgruppe" rows="4" placeholder="z. B. Spirituelle Coaches 45+, die mehr Premium-Kunden gewinnen wollen." required></textarea>
+        <p class="question-example">Beispiel: „Spirituelle Coaches 45+, die mehr Premium-Kunden gewinnen wollen.“</p>
+        <p class="field-error" data-error></p>
+        <div class="question-actions">
+          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-primary" type="submit">Weiter</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ FRAGE 2 ============ -->
+    <section class="screen" id="screen-q2" data-screen data-question="2">
+      <form class="question-form" data-form>
+        <h2 class="question-title">Welches konkrete Problem beschäftigt Ihre Wunsch-Kunden aktuell besonders stark?</h2>
+        <p class="question-hint">Was frustriert sie im Alltag am meisten?</p>
+        <textarea class="question-input" name="problem" rows="4" placeholder="z. B. Sie posten regelmäßig, bekommen aber kaum kaufbereite Anfragen." required></textarea>
+        <p class="question-example">Beispiel: „Sie posten regelmäßig, bekommen aber kaum kaufbereite Anfragen.“</p>
+        <p class="field-error" data-error></p>
+        <div class="question-actions">
+          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-primary" type="submit">Weiter</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ FRAGE 3 ============ -->
+    <section class="screen" id="screen-q3" data-screen data-question="3">
+      <form class="question-form" data-form>
+        <h2 class="question-title">Was möchten Ihre Wunsch-Kunden stattdessen unbedingt erreichen?</h2>
+        <p class="question-hint">Beschreiben Sie das Traum-Ergebnis Ihrer Kunden.</p>
+        <textarea class="question-input" name="traum" rows="4" placeholder="z. B. Sie wollen planbar 10.000 €+ Monatsumsatz mit passenden Premium-Kunden." required></textarea>
+        <p class="question-example">Beispiel: „Sie wollen planbar 10.000 €+ Monatsumsatz mit passenden Premium-Kunden.“</p>
+        <p class="field-error" data-error></p>
+        <div class="question-actions">
+          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-primary" type="submit">Weiter</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ FRAGE 4 ============ -->
+    <section class="screen" id="screen-q4" data-screen data-question="4">
+      <form class="question-form" data-form>
+        <h2 class="question-title">Welches Angebot soll Ihr KI-Tool idealerweise vorbereiten oder verkaufen?</h2>
+        <p class="question-hint">Nennen Sie Ihr Haupt-Angebot – gerne mit Preis.</p>
+        <textarea class="question-input" name="angebot" rows="4" placeholder="z. B. 90-Tage-Business-Coaching für 7.000 €." required></textarea>
+        <p class="question-example">Beispiel: „90-Tage-Business-Coaching für 7.000 €.“</p>
+        <p class="field-error" data-error></p>
+        <div class="question-actions">
+          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-primary" type="submit">Weiter</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ FRAGE 5 ============ -->
+    <section class="screen" id="screen-q5" data-screen data-question="5">
+      <form class="question-form" data-form>
+        <h2 class="question-title">Wofür sind Sie besonders gut, bekannt oder anders als andere Anbieter?</h2>
+        <p class="question-hint">Was macht Sie einzigartig in Ihrem Markt?</p>
+        <textarea class="question-input" name="expertise" rows="4" placeholder="z. B. Ich verbinde Business-Strategie, KI und spirituelle Identitätsarbeit." required></textarea>
+        <p class="question-example">Beispiel: „Ich verbinde Business-Strategie, KI und spirituelle Identitätsarbeit.“</p>
+        <p class="field-error" data-error></p>
+        <div class="question-actions">
+          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-primary" type="submit">Weiter</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ FRAGE 6 ============ -->
+    <section class="screen" id="screen-q6" data-screen data-question="6">
+      <form class="question-form" data-form>
+        <h2 class="question-title">Welche eigenen Methoden, Modelle, Tests, Prozesse oder Erfahrungen könnten in Ihr Tool einfließen?</h2>
+        <p class="question-hint">Das ist Ihr wichtigstes Unterscheidungsmerkmal – je konkreter, desto stärker die Ideen.</p>
+        <textarea class="question-input" name="methode" rows="4" placeholder="z. B. Meine Methode verbindet Soul-Autorität, Premium-Angebot und KI-Kunden-System." required></textarea>
+        <p class="question-example">Beispiel: „Meine Methode verbindet Soul-Autorität, Premium-Angebot und KI-Kunden-System.“</p>
+        <p class="field-error" data-error></p>
+        <div class="question-actions">
+          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-primary" type="submit">Weiter</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ FRAGE 7 – BESTÄTIGUNG ============ -->
+    <section class="screen" id="screen-q7" data-screen data-question="7">
+      <div class="confirm-box">
+        <div class="confirm-icon">✨</div>
+        <h2 class="question-title">Perfekt.</h2>
+        <p class="confirm-text">Wir suchen jetzt 5 Ideen, bei denen Sie sofort denken:<br>
+        <strong>„WOW, die passen wirklich zu meinem Business. Eine davon will und kann ich sofort bauen!“</strong></p>
+        <div class="question-actions confirm-actions">
+          <button class="btn btn-ghost" type="button" data-back>Zurück</button>
+          <button class="btn btn-primary btn-large" id="btnGenerate" type="button">Meine 5 besten Ideen erstellen</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LADESCREEN ============ -->
+    <section class="screen" id="screen-loading" data-screen>
+      <div class="loading-box">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="loading-text" id="loadingText">Ihre individuellen KI-Tool-Ideen werden erstellt …</p>
+      </div>
+    </section>
+
+    <!-- ============ ERGEBNISSE ============ -->
+    <section class="screen" id="screen-results" data-screen>
+      <div class="results-header">
+        <p class="eyebrow">Ihre persönliche Auswertung</p>
+        <h2 class="results-headline">Ihre 5 individuellen KI-Tool-Ideen</h2>
+        <p class="results-subline">Speziell abgeleitet aus Ihrer Zielgruppe, Ihrem Angebot und Ihrer eigenen Methode.</p>
+      </div>
+
+      <div class="idea-cards" id="ideaCards"></div>
+
+      <div class="selection-block">
+        <h2 class="selection-headline">Welche Idee wollen Sie jetzt bauen?</h2>
+        <p class="selection-hint">Wählen Sie eine Idee aus, um die kompakte Konzept-Zusammenfassung zu sehen.</p>
+        <div class="selection-cards" id="selectionCards"></div>
+        <div class="concept-summary" id="conceptSummary" hidden></div>
+      </div>
+
+      <div class="restart-block">
+        <button class="btn btn-ghost" id="btnRestart" type="button">Neue Angaben machen &amp; neu starten</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>KI-Tool-Ideen-Generator · Ihre Angaben werden ausschließlich lokal in Ihrem Browser verarbeitet und nicht extern gespeichert.</p>
+  </footer>
+
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
