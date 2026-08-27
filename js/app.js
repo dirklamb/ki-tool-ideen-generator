@@ -1,10 +1,10 @@
 'use strict';
 
 /* ==========================================================================
-   KI-Tool-Ideen-Generator — App-Logik (V5)
+   KI-Tool-Ideen-Generator — App-Logik (V6)
    Vollständig client-seitig, keine externen Aufrufe, keine Speicherung.
 
-   V4/V5-Hinweis zur "Zielgruppen-Analyse vor der Ideen-Generierung" und
+   V4–V6-Hinweis zur "Zielgruppen-Analyse vor der Ideen-Generierung" und
    zur "internen 3-fach-Optimierung": Die App enthält keine Laufzeit-KI,
    kann also keine generativen Entwürfe verwerfen und neu erzeugen. Der
    ehrliche, regelbasierte Ersatz: analyzeAudience() sammelt zuerst ALLE
@@ -13,19 +13,26 @@
    in der spezifische Alltagsbegriffe grundsätzlich vor generischen
    Wörtern wie "Konflikt", "Vertrauen" oder "Motivation" geprüft werden)
    und verteilt sie über einen nach Spezifität sortierten Themen-Pool
-   gezielt auf die 5 Ideen. Ein generisches Tier-F-Wort wird für einen
-   Namen erst dann gezogen, wenn wirklich kein spezifischeres Thema mehr
-   irgendwo in den drei Antworten übrig ist (siehe take() in
-   analyzeAudience) — nicht schon, weil ein einzelnes Feld dünn ist.
-   V5 hat außerdem die festen Namens-Füllwörter entfernt ("Muster-Kompass"
-   → "Kompass", "Potenzial-Score" → "Score", "Fahrplan-Formel" →
-   "Fahrplan", "Bereitschafts-Check" → "Check"), weil ein immer gleiches
-   Füllwort im Namen selbst dann noch nach Schema wirkt, wenn das Thema
-   davor bereits spezifisch ist. Jedes Text-Template wurde beim Schreiben
-   gegen die Qualitätskriterien (spezifisch, keine Meta-Floskeln, keine
-   Rohtext-Zitate) geprüft; lintIdea() prüft davon automatisiert nach, was
-   sich zur Laufzeit prüfen lässt (Meta-Floskeln, "Der "-Namenspräfixe,
-   Scores unter der 9,2-/9,6-Schwelle).
+   gezielt auf die 5 Ideen. V5 hat die festen Namens-Füllwörter entfernt
+   ("Muster-Kompass" → "Kompass" usw.), weil ein immer gleiches Füllwort
+   im Namen selbst dann noch nach Schema wirkt, wenn das Thema davor
+   bereits spezifisch ist.
+   V6 geht einen Schritt weiter gegen "Idee = Format + ein Thema-Wort"
+   (siehe listOr()/listAnd() und diagOptions in buildIdeas): die
+   Kompass-Idee stellt jetzt eine echte Mehrfach-Diagnose ("erkennt, ob
+   eher A, B oder C dahintersteckt") aus bis zu drei unterschiedlichen,
+   textlich begründeten Themen desselben Pools, und jedes Beispiel-
+   Ergebnis erzählt eine kurze, in sich schlüssige Ursache-Wirkungs-Kette
+   statt eines einzelnen abstrakten Labels. Das Score-System wurde um die
+   drei KPIs mit "kompromisslosem Fokus" erweitert (Content-Qualität,
+   Zielgruppen-Fit, Spezifität, zusammen mit WOW über die Hälfte des
+   Gesamt-Gewichts), mit eigenen, härteren Mindestschwellen pro Metrik
+   (siehe METRIC_FLOORS) statt einer einzigen globalen Grenze. Jedes
+   Text-Template wurde beim Schreiben gegen die Qualitätskriterien
+   (spezifisch, keine Meta-Floskeln, keine Rohtext-Zitate) geprüft;
+   lintIdea() prüft davon automatisiert nach, was sich zur Laufzeit
+   prüfen lässt (Meta-Floskeln, "Der "-Namenspräfixe, Scores unter der
+   jeweiligen Metrik-Schwelle, Top-Idee unter 9,7 Gesamt-Potenzial).
    ========================================================================== */
 
 /* ---------------------------------------------------------------------- *
@@ -167,9 +174,27 @@ function seededJitter(seed) {
   return (frac - 0.5) * 0.3;
 }
 
-/* V4: alle Scores bewegen sich im Elite-Bereich 9,2–9,9 */
-function clampScore9(n) {
-  return Math.max(9.2, Math.min(9.9, Math.round(n * 10) / 10));
+/* V6: pro Metrik eigene Mindestschwelle — die 4 KPIs mit kompromisslosem
+   Fokus (Content-Qualität, WOW, Zielgruppen-Fit, Spezifität) liegen höher
+   als die übrigen Metriken. */
+const METRIC_FLOORS = {
+  contentqualitaet: 9.4,
+  wow: 9.4,
+  zielgruppenfit: 9.5,
+  spezifitaet: 9.5,
+  habenwollen: 9.2,
+  individualisierung: 9.2,
+  einzigartigkeit: 9.2,
+  leadsog: 9.2,
+  kaufsog: 9.2,
+  expertise: 9.2,
+  umsetzung: 9.2,
+  gesamt: 9.4
+};
+
+function clampScore9(n, key) {
+  const floor = (key && METRIC_FLOORS[key]) || 9.2;
+  return Math.max(floor, Math.min(9.9, Math.round(n * 10) / 10));
 }
 
 function formatScore(n) {
@@ -368,12 +393,13 @@ function lintIdea(idea) {
     console.warn(`Qualitätscheck: Name von Idee "${idea.id}" beginnt mit "Der " ("${idea.name}").`);
   }
   Object.keys(idea.scores).forEach((key) => {
-    if (idea.scores[key] < 9.2) {
-      console.warn(`Qualitätscheck: Score "${key}" von Idee "${idea.id}" liegt unter 9,2.`);
+    const floor = METRIC_FLOORS[key] || 9.2;
+    if (idea.scores[key] < floor) {
+      console.warn(`Qualitätscheck: Score "${key}" von Idee "${idea.id}" liegt unter ${floor}.`);
     }
   });
-  if (idea.isTop && idea.scores.gesamt < 9.6) {
-    console.warn(`Qualitätscheck: Top-Idee "${idea.id}" liegt unter 9,6 Gesamt-Potenzial.`);
+  if (idea.isTop && idea.scores.gesamt < 9.7) {
+    console.warn(`Qualitätscheck: Top-Idee "${idea.id}" liegt unter 9,7 Gesamt-Potenzial.`);
   }
 }
 
@@ -443,9 +469,29 @@ function analyzeAudience(answers) {
     traumThema,
     traumThemaAlt,
     bereitThema,
+    pool,
     methodeThema: extractTheme(answers.methode, 'Ihrer Methode'),
     expertiseThema: extractTheme(answers.expertise, 'Ihrer Expertise')
   };
+}
+
+/* Baut aus mehreren Themen eine echte Diagnose-Alternative ("eher A, B
+   oder C") statt eines einzelnen abstrakten Labels — siehe V6-Formel für
+   Sublines und "Warum stark". */
+function listOr(options) {
+  const items = [];
+  options.forEach((o) => { if (o && items.indexOf(o) === -1) items.push(o); });
+  if (items.length >= 3) return `eher ${items[0]}, ${items[1]} oder ${items[2]}`;
+  if (items.length === 2) return `eher ${items[0]} oder ${items[1]}`;
+  return items[0] || 'ein bestimmtes Muster';
+}
+
+function listAnd(options) {
+  const items = [];
+  options.forEach((o) => { if (o && items.indexOf(o) === -1) items.push(o); });
+  if (items.length >= 3) return `${items[0]}, ${items[1]} und ${items[2]}`;
+  if (items.length === 2) return `${items[0]} und ${items[1]}`;
+  return items[0] || 'das zugrunde liegende Muster';
 }
 
 function buildIdeas(answers) {
@@ -459,13 +505,22 @@ function buildIdeas(answers) {
   const angebotKurz = angebotName(angebot);
   const p = PRONOUNS[detectGender(zg)];
   const audience = analyzeAudience(answers);
-  const { problemThema, problemThemaAlt, traumThema, traumThemaAlt, bereitThema, methodeThema, expertiseThema } = audience;
+  const { problemThema, problemThemaAlt, traumThema, traumThemaAlt, bereitThema, pool, methodeThema, expertiseThema } = audience;
 
   const baseSeed = hashStr(zg + problem + traum + angebot + expertise + methode);
   const methodeReichhaltig = methode.trim().split(/\s+/).length >= 10;
   const expertiseReichhaltig = expertise.trim().split(/\s+/).length >= 10;
   const problemReichhaltig = problem.trim().split(/\s+/).length >= 12;
   const traumReichhaltig = traum.trim().split(/\s+/).length >= 12;
+
+  /* Echte Diagnose-Alternativen für die Kompass-Idee: bis zu 3 weitere,
+     vom Kern-Thema verschiedene Konzepte aus dem gemeinsamen Themen-Pool
+     (siehe V6-Subline-Formel "erkennt, ob eher A, B oder C dahintersteckt"). */
+  const diagCandidates = [problemThemaAlt, traumThemaAlt, bereitThema, traumThema]
+    .concat(pool)
+    .filter((t) => t && t !== problemThema);
+  const diagOptions = [];
+  diagCandidates.forEach((t) => { if (diagOptions.indexOf(t) === -1 && diagOptions.length < 3) diagOptions.push(t); });
 
   const blueprints = [];
 
@@ -475,26 +530,26 @@ function buildIdeas(answers) {
     category: 'Diagnose',
     toolType: 'Typ-Analyse / Muster-Test',
     name: `${problemThema}-Kompass`,
-    subline: `In wenigen Minuten erkennt ${p.subjCap}, welches ${problemThema}-Muster hinter der aktuellen Situation steckt – und warum gute Vorsätze bisher nicht ausgereicht haben.`,
-    ioLine: `6–8 gezielte Fragen zu ${problemThema} und typischen Reaktionsmustern → dominantes Muster + konkrete erste Veränderungs-Empfehlung`,
+    subline: `${p.subjCap} erkennt, ob hinter ${problemThema} ${listOr(diagOptions)} steckt – und was ${p.subj} als Erstes verändern sollte.`,
+    ioLine: `6–8 gezielte Fragen zu ${problemThema}, ${diagOptions[0] || problemThemaAlt} und typischen Reaktionsmustern → wahrscheinlichste Ursache + konkreter erster Veränderungs-Schritt`,
     inputs: [
       `6–8 Fragen zu ${problemThema} und typischen Reaktionsmustern im Alltag`,
-      `Einschätzung, wie stark dieses Muster die aktuelle Situation beeinflusst`,
+      `Einschätzung, wie stark ${diagOptions[0] || problemThemaAlt} die aktuelle Situation zusätzlich beeinflusst`,
       `Wunsch-Richtung: wie nah ${p.subj} an ${traumThema} bereits ist`
     ],
-    output: `Ein persönliches Muster-Profil mit klarem Namen, das erklärt, warum genau dieses Verhalten bei ${problemThema} immer wieder auftritt – plus einer konkreten ersten Handlungsempfehlung.`,
+    output: `Eine klare Unterscheidung, ob ${listOr(diagOptions)} die wahrscheinlichste Ursache für ${problemThema} ist – plus einer konkreten ersten Handlungsempfehlung.`,
     whyStrong: [
       `${p.subjCap} versteht danach, warum sie trotz guter Absicht immer wieder im selben Muster landet.`,
-      `Macht sichtbar, an welchem Punkt genau die Veränderung bisher unbewusst kippt.`
+      `Unterscheidet ${listAnd([problemThema].concat(diagOptions))} als mögliche Ursachen.`
     ],
-    miniPreview: `Dominantes Muster „${problemThema}“ → innere Anspannung → ${p.subj === 'er' ? 'sein' : 'ihr'} typischer Rückzug.`,
+    miniPreview: `Hauptursache: ${problemThema} → ${p.subj === 'er' ? 'er' : 'sie'} weicht der entscheidenden Situation aus → das Umfeld reagiert mit mehr Druck → das Muster verstärkt sich weiter.`,
     wowMoment: `${p.subjCap} erkennt, dass nicht fehlende Disziplin das eigentliche Problem ist, sondern ein wiederkehrendes ${problemThema}-Muster, das bisher unbewusst blieb.`,
     whatNext: `${p.subjCap} will verstehen, wie sich dieses Muster dauerhaft durchbrechen lässt.`,
     salesLine: `Das Tool zeigt das ${problemThema}-Muster, ${angebotKurz} löst es dauerhaft auf.`,
     different: `Es liefert nicht nur eine Kategorie, sondern verbindet Muster, Ursache und einen konkreten nächsten Schritt – das leistet ein einzelner ChatGPT-Prompt nicht.`,
     expertiseFit: `Das Tool nutzt ${methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`}, um das ${problemThema}-Muster im Licht Ihrer Expertise (${expertiseThema}) auszuwerten statt mit generischem Coaching-Wissen.`,
     umsetzung: { label: 'Einfach', time: 'ca. 25–35 Minuten' },
-    scoreBase: { wow: 9.5, habenwollen: 9.4, individualisierung: 9.4, einzigartigkeit: 9.3, leadsog: 9.6, kaufsog: 9.4, umsetzung: 9.5, expertise: 9.4 },
+    scoreBase: { contentqualitaet: 9.6, wow: 9.6, zielgruppenfit: 9.6, spezifitaet: 9.7, habenwollen: 9.4, individualisierung: 9.4, einzigartigkeit: 9.3, leadsog: 9.6, kaufsog: 9.4, umsetzung: 9.5, expertise: 9.4 },
     boosts: problemReichhaltig ? { wow: 0.1, individualisierung: 0.1 } : {}
   });
 
@@ -516,14 +571,14 @@ function buildIdeas(answers) {
       `${p.subjCap} sieht schwarz auf weiß, wo ${p.subj} wirklich steht, statt eines diffusen Gefühls.`,
       `Eine konkrete Zahl erzeugt spürbaren Handlungsdruck, den ein Ratgeber-Text nicht schafft.`
     ],
-    miniPreview: `Score 58/100 → größte Lücke: fehlende Struktur bei ${traumThema}.`,
+    miniPreview: `Score 58/100 → ${traumThema} scheitert bisher an fehlender Struktur, nicht an fehlendem Willen → genau dort liegt die größte Lücke.`,
     wowMoment: `${p.subjCap} merkt, dass ${p.subj} näher am Ziel ist als gedacht – aber an genau einer Stelle hängen bleibt, die bisher übersehen wurde.`,
     whatNext: `${p.subjCap} will wissen, wie sich genau diese eine Lücke gezielt schließen lässt.`,
     salesLine: `Das Tool zeigt die Lücke zu ${traumThema}, ${angebotKurz} schließt sie strukturiert.`,
     different: `Der Score basiert auf Ihren eigenen fachlichen Kriterien statt auf einem austauschbaren Standard-Test.`,
     expertiseFit: `Die Bewertungskriterien des Scores sind aus Ihrer Expertise (${expertiseThema}) abgeleitet, nicht aus einer allgemeinen Checkliste.`,
     umsetzung: { label: 'Einfach', time: 'ca. 25–35 Minuten' },
-    scoreBase: { wow: 9.3, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.4, kaufsog: 9.5, umsetzung: 9.6, expertise: 9.3 },
+    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.5, spezifitaet: 9.5, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.4, kaufsog: 9.5, umsetzung: 9.6, expertise: 9.3 },
     boosts: traumReichhaltig ? { leadsog: 0.1, kaufsog: 0.1 } : {}
   });
 
@@ -545,14 +600,14 @@ function buildIdeas(answers) {
       `${p.subjCap} sieht ${traumThemaAlt} erstmals als planbaren Weg statt als vages Fernziel.`,
       `Jede Etappe liefert eine konkrete Handlung statt nur Motivation.`
     ],
-    miniPreview: `Etappe 2 von 4 – erreichbar, sobald der erste Schritt bei ${problemThema} angegangen wird.`,
+    miniPreview: `Etappe 2 von 4: ${traumThemaAlt} rückt spürbar näher, sobald ${problemThema} nicht mehr jeden Schritt ausbremst.`,
     wowMoment: `${p.subjCap} erkennt, dass ${traumThemaAlt} nicht an fehlender Willenskraft scheitert, sondern an der fehlenden Reihenfolge der richtigen Schritte.`,
     whatNext: `${p.subjCap} will wissen, wie sich die nächste Etappe konkret und ohne Umwege umsetzen lässt.`,
     salesLine: `Das Tool zeigt den Weg zu ${traumThemaAlt}, ${angebotKurz} begleitet die Umsetzung jeder Etappe.`,
     different: `Die Etappen sind an Ihrer Methode ausgerichtet – nicht an einem generischen Fahrplan-Schema.`,
     expertiseFit: `Die Etappen der Roadmap folgen ${methodeThema === 'Ihrer Methode' ? 'Ihrer eigenen Methode' : `Ihrer Methode „${methodeThema}“`}, nicht einem austauschbaren Standard-Fahrplan.`,
     umsetzung: { label: 'Einfach', time: 'ca. 30–40 Minuten' },
-    scoreBase: { wow: 9.4, habenwollen: 9.5, individualisierung: 9.3, einzigartigkeit: 9.3, leadsog: 9.5, kaufsog: 9.6, umsetzung: 9.3, expertise: 9.3 },
+    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.5, spezifitaet: 9.5, habenwollen: 9.5, individualisierung: 9.3, einzigartigkeit: 9.3, leadsog: 9.5, kaufsog: 9.6, umsetzung: 9.3, expertise: 9.3 },
     boosts: {}
   });
 
@@ -574,14 +629,14 @@ function buildIdeas(answers) {
       `${p.subjCap} erlebt unmittelbar, wie sich Ihre Methode auf die eigene Situation anwenden lässt.`,
       `Die Empfehlung ist an Ihre Methode gebunden – kaum durch einen austauschbaren Prompt ersetzbar.`
     ],
-    miniPreview: `Ersteinschätzung „${problemThemaAlt} unbewusst vermieden“ → konkreter erster Schritt für diese Woche.`,
+    miniPreview: `Erste Einschätzung: ${problemThemaAlt} wirkt an der Oberfläche wie Willensschwäche → der eigentliche Hebel liegt eine Ebene tiefer → genau dort setzt Ihre Methode an.`,
     wowMoment: `${p.subjCap} erkennt, dass bisherige Versuche nicht am fehlenden Willen scheiterten, sondern eine Ebene tiefer ansetzen müssten – genau dort, wo Ihre Methode ansetzt.`,
     whatNext: `${p.subjCap} will die eigene Situation ausführlicher und persönlich mit Ihnen durchgehen.`,
     salesLine: `Das Tool gibt eine erste methodenbasierte Einschätzung, ${angebotKurz} vertieft sie in einer echten Begleitung.`,
     different: `Es antwortet nicht generisch, sondern erkennbar im Sinne Ihrer eigenen Methode – das kann ein Standard-Chatbot nicht leisten.`,
     expertiseFit: `Die Logik basiert direkt auf ${methodeThema === 'Ihrer Methode' ? 'Ihrer Methode' : `Ihrer Methode „${methodeThema}“`} und wertet ${problemThemaAlt} genau so aus, wie Sie es in einer echten Sitzung tun würden.`,
     umsetzung: { label: 'Mittel', time: 'ca. 40–60 Minuten' },
-    scoreBase: { wow: 9.7, habenwollen: 9.6, individualisierung: 9.8, einzigartigkeit: 9.8, leadsog: 9.6, kaufsog: 9.5, umsetzung: 9.2, expertise: 9.8 },
+    scoreBase: { contentqualitaet: 9.7, wow: 9.7, zielgruppenfit: 9.7, spezifitaet: 9.8, habenwollen: 9.6, individualisierung: 9.8, einzigartigkeit: 9.8, leadsog: 9.6, kaufsog: 9.5, umsetzung: 9.2, expertise: 9.8 },
     boosts: methodeReichhaltig ? { individualisierung: 0.1, einzigartigkeit: 0.1, expertise: 0.1 } : {}
   });
 
@@ -603,19 +658,26 @@ function buildIdeas(answers) {
       `${p.subjCap} bekommt eine ehrliche Einschätzung statt eines weiteren Verkaufsversprechens.`,
       `Eine ehrliche Einschätzung senkt die Kaufhürde spürbar, statt sie zu erhöhen.`
     ],
-    miniPreview: `„Starke Passung“ → Empfehlung: jetzt den nächsten Schritt zu ${angebotKurz} gehen.`,
+    miniPreview: `„Starke Passung“: ${problemThema} ist dringlich genug, ${traumThema} ist klar genug → jetzt fehlt nur noch der nächste Schritt zu ${angebotKurz}.`,
     wowMoment: `${p.subjCap} erkennt, dass die eigene Zurückhaltung nicht an mangelnder Eignung lag, sondern an einer offenen Frage, die der Check gerade beantwortet hat.`,
     whatNext: `${p.subjCap} will bei starker Passung den nächsten konkreten Schritt gehen.`,
     salesLine: `Das Tool klärt die Passung, ${angebotKurz} ist der nächste logische Schritt danach.`,
     different: `Die Kriterien sind auf Ihre tatsächlichen Erfolgsfaktoren zugeschnitten statt auf einen generischen Fragebogen.`,
     expertiseFit: `Die Passungs-Kriterien spiegeln, was bei Ihnen wirklich funktioniert: ${expertiseThema}.`,
     umsetzung: { label: 'Sehr einfach', time: 'ca. 20–30 Minuten' },
-    scoreBase: { wow: 9.2, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.5, kaufsog: 9.8, umsetzung: 9.8, expertise: 9.3 },
+    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.6, spezifitaet: 9.5, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.5, kaufsog: 9.8, umsetzung: 9.8, expertise: 9.3 },
     boosts: expertiseReichhaltig ? { expertise: 0.1 } : {}
   });
 
-  /* ---- Scores berechnen (Elite-Bereich 9,2–9,9) ---- */
-  const METRIC_WEIGHTS = { wow: 0.15, habenwollen: 0.12, individualisierung: 0.12, einzigartigkeit: 0.12, leadsog: 0.16, kaufsog: 0.16, umsetzung: 0.08, expertise: 0.09 };
+  /* ---- Scores berechnen (Elite-Bereich, pro Metrik eigene Schwelle) ----
+     Die 4 KPIs mit "kompromisslosem Fokus" (Content-Qualität, WOW,
+     Zielgruppen-Fit, Spezifität) tragen zusammen über die Hälfte des
+     Gewichts am Gesamt-Potenzial. */
+  const METRIC_WEIGHTS = {
+    contentqualitaet: 0.14, wow: 0.14, zielgruppenfit: 0.14, spezifitaet: 0.14,
+    habenwollen: 0.07, individualisierung: 0.06, einzigartigkeit: 0.06,
+    leadsog: 0.08, kaufsog: 0.08, expertise: 0.05, umsetzung: 0.04
+  };
 
   let ideas = blueprints.map((bp, i) => {
     const seed = baseSeed + i * 977;
@@ -623,12 +685,12 @@ function buildIdeas(answers) {
     Object.keys(bp.scoreBase).forEach((key, j) => {
       const boost = bp.boosts && bp.boosts[key] ? bp.boosts[key] : 0;
       const val = bp.scoreBase[key] + boost + seededJitter(seed + j * 13);
-      scores[key] = clampScore9(val);
+      scores[key] = clampScore9(val, key);
     });
 
     let gesamt = 0;
     Object.keys(METRIC_WEIGHTS).forEach((key) => { gesamt += scores[key] * METRIC_WEIGHTS[key]; });
-    scores.gesamt = clampScore9(gesamt);
+    scores.gesamt = clampScore9(gesamt, 'gesamt');
 
     return {
       id: bp.id,
@@ -656,12 +718,12 @@ function buildIdeas(answers) {
   /* ---- Sortierung: stärkste Idee immer an Position 1 ---- */
   ideas.sort((a, b) => b.scores.gesamt - a.scores.gesamt);
 
-  /* Sicherheitsnetz: Top-Idee garantiert ≥ 9,6, alle anderen ≥ 9,2
+  /* Sicherheitsnetz: Top-Idee garantiert ≥ 9,7, alle anderen ≥ 9,4 Gesamt
      (Letzteres ist durch den Floor in clampScore9 bereits pro Metrik
      erzwungen und pflanzt sich damit mathematisch in den gewichteten
      Gesamt-Potenzial-Wert fort). */
-  if (ideas[0].scores.gesamt < 9.6) {
-    ideas[0].scores.gesamt = clampScore9(9.6 + Math.abs(seededJitter(baseSeed)) * 0.5);
+  if (ideas[0].scores.gesamt < 9.7) {
+    ideas[0].scores.gesamt = Math.min(9.9, Math.round((9.7 + Math.abs(seededJitter(baseSeed)) * 0.4) * 10) / 10);
   }
 
   ideas.forEach((idea, i) => {
@@ -790,7 +852,10 @@ Wenn etwas nicht rund läuft, korrigiere es eigenständig, bevor du fertig bist.
  * ---------------------------------------------------------------------- */
 
 const SCORE_LABELS = {
+  contentqualitaet: 'Content-Qualität',
   wow: 'WOW-Effekt',
+  zielgruppenfit: 'Zielgruppen-Fit',
+  spezifitaet: 'Spezifität',
   habenwollen: 'Haben-wollen',
   individualisierung: 'Individualisierung',
   einzigartigkeit: 'Einzigartigkeit',
@@ -801,7 +866,7 @@ const SCORE_LABELS = {
 };
 
 function renderScoreGrid(scores) {
-  const order = ['wow', 'habenwollen', 'individualisierung', 'einzigartigkeit', 'leadsog', 'kaufsog', 'umsetzung', 'expertise'];
+  const order = ['contentqualitaet', 'wow', 'zielgruppenfit', 'spezifitaet', 'habenwollen', 'individualisierung', 'einzigartigkeit', 'leadsog', 'kaufsog', 'umsetzung', 'expertise'];
   return `<div class="score-grid">${order.map((key) => `
     <div class="score-item">
       <div class="score-label-row"><span>${SCORE_LABELS[key]}</span><strong>${formatScore(scores[key])}/10</strong></div>
