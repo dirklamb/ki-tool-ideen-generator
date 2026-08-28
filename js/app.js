@@ -82,6 +82,30 @@
    Textfelder wurden gegen die erweiterte Floskel-Verbotsliste geprüft
    (siehe META_PATTERNS) und durch konkrete Ursache-Wirkungs-Aussagen
    ersetzt.
+
+   V9 — Themenbreite-Runde: Da die App ohne Laufzeit-KI kein echtes
+   7-Themen-Clustering (akute Probleme/Alltagssituationen/Ängste/
+   Selbstgespräche/Sehnsüchte/Traum-Ergebnisse/Zukunftsfragen) fahren
+   kann, ist der ehrliche, regelbasierte Ersatz: die 5 (bzw. 6)
+   Blueprints ziehen bewusst aus unterschiedlichen Antwort-Quellen
+   (problemThema/problemThemaAlt für akute Probleme, traumThema/
+   traumThemaAlt für Sehnsucht/Traum-Ergebnis, bereitThema für
+   Entscheidungs-Bereitschaft, zukunftSignal-Fall für Zukunftsfragen),
+   wodurch die 5 Ideen strukturell verschiedene Blickwinkel statt nur
+   verschiedener Formate desselben Pains abdecken. Neu: THEME_KEYWORDS
+   hat eine eigene Tier C2 für Lebensphase/Kraft/Souveränität (Grübeln,
+   Kraftverlust, Verantwortungslast …), und Blueprint 5 wird durch
+   ZUKUNFT_SIGNAL (Alters-/Phasenangaben, "nächste X Jahre", "Zukunft",
+   "Souveränität" …) dynamisch zum Zukunftsplaner statt zum
+   Bereitschafts-Check, sobald die Zielgruppe erkennbar auf Lebens-
+   phase/Identität/Zukunft reagiert (Punkte 2/8/9/11 der Vorgabe) — sein
+   Name folgt bewusst einem anderen, satzartigen Stil ("Meine nächsten
+   10 Jahre: …") statt des sonst üblichen Bindestrich-Compounds.
+   buildNameThema() kürzt kombinierte Namen jetzt über shortTheme() auf
+   ihr letztes Wort, damit ein Zwei-Themen-Name nie über 4–5 Wörter
+   hinauswächst (verbotenes Beispiel: "Konflikt-Entscheidungs-Ursachen-
+   Scanner"). METRIC_FLOORS.einzigartigkeit deckt jetzt zusätzlich die
+   Mindestschwelle "thematische Eigenständigkeit ≥ 9,5" ab.
    ========================================================================== */
 
 /* ---------------------------------------------------------------------- *
@@ -234,7 +258,7 @@ const METRIC_FLOORS = {
   verstaendlichkeit: 9.6,
   habenwollen: 9.2,
   individualisierung: 9.2,
-  einzigartigkeit: 9.2,
+  einzigartigkeit: 9.5,
   leadsog: 9.2,
   kaufsog: 9.2,
   expertise: 9.2,
@@ -265,6 +289,16 @@ function detectGender(zielgruppeText) {
   if (m && !f) return 'm';
   return 'n';
 }
+
+/* Erkennt, ob die Zielgruppe stark auf Lebensphase, Identität oder
+   Zukunft reagiert ("nächste X Jahre", "Lebensphase", "Souveränität"
+   als eigenständiges Signalwort usw.) — steuert, ob Blueprint 5 durch
+   den Zukunftsplaner ersetzt wird (siehe buildIdeas). Bewusst OHNE
+   bloße Altersangaben ("50+", "40 Jahre alt") als Signal: Alters-
+   Zielgruppen sind in praktisch jeder Coaching-Nische üblich und wären
+   damit kein echtes Unterscheidungsmerkmal, sondern würden das Signal
+   fast immer auslösen. */
+const ZUKUNFT_SIGNAL = /\b(nächsten?\s+\d+\s*jahre[n]?|kommenden\s+\d*\s*jahre[n]?|nächste[nr]?\s*(lebens)?phase|lebensphase|zukunft|identität|generation|so\s*weiter(machen|zumachen)|weitermachen wie bisher|souverän)/i;
 
 const PRONOUNS = {
   f: { subjCap: 'Ihre Interessentin', subj: 'sie', subjAcc: 'sie', subjGen: 'Ihrer Interessentin', kunde: 'Ihre Kundin', kundeAcc: 'Ihre Kundin' },
@@ -325,6 +359,19 @@ const THEME_KEYWORDS = [
   [/eigenverantwortung/i, 'Eigenverantwortung'],
   [/delegier/i, 'Delegation'],
   [/mikromanage/i, 'Mikromanagement'],
+
+  /* ---- Tier C2: Lebensphase/Kraft/Souveränität — erfahrene Führungs-
+     kräfte und Unternehmerinnen, die nicht an einer akuten Krise,
+     sondern an Kraftverlust über Zeit und der eigenen nächsten
+     Lebensphase arbeiten. */
+  [/grübel/i, 'Grübeln'],
+  [/konflikt.*mit nach hause|nach hause.*(nehmen|mitnehmen).*konflikt|nimmt.*konflikt.*mit/i, 'Konflikte-mit-nach-Hause-Nehmen'],
+  [/zu spät.*grenze|spät.*nein sag|grenze.*zu spät|erst.*(dann|wenn).*grenze/i, 'Zu-spät-Grenzen-setzen'],
+  [/zu viel verantwortung|verantwortung.*trag(en|e)?\b|verantwortungslast/i, 'Verantwortungslast'],
+  [/nicht abschalten|schwer.*abschalten|abschalten.*schwer|abends.*nicht.*los/i, 'Nicht-abschalten-Können'],
+  [/kraftverlust|kraftraub|energieräuber|kraft.*verlier|verlier.*kraft|unnötig.*kraft|kraft.*aufgebraucht|aufgebraucht.*kraft/i, 'Kraftverlust'],
+  [/inner(e|er|en)\s+ruhe|zur ruhe kommen/i, 'innere Ruhe'],
+  [/souverän/i, 'Souveränität'],
 
   /* ---- Tier D: allgemein emotional/psychologisch. */
   [/angst/i, 'Angst'],
@@ -423,7 +470,15 @@ const THEME_CONCRETE = {
   Versagensangst: 'traut sich an schwierige Aufgaben heran, statt sie vorab zu vermeiden',
   Notenangst: 'geht in Prüfungssituationen ruhiger heran, statt sich vorher komplett zu blockieren',
   Prüfungsangst: 'geht in Prüfungssituationen ruhiger heran, statt sich vorher komplett zu blockieren',
-  Konzentrationsprobleme: 'bleibt länger konzentriert bei einer Aufgabe, ohne sich ständig ablenken zu lassen'
+  Konzentrationsprobleme: 'bleibt länger konzentriert bei einer Aufgabe, ohne sich ständig ablenken zu lassen',
+  Grübeln: 'lässt schwierige Entscheidungen abends los, statt sie im Kopf immer wieder durchzugehen',
+  'Konflikte-mit-nach-Hause-Nehmen': 'lässt berufliche Konflikte im Büro, statt abends noch stundenlang darüber nachzudenken',
+  'Zu-spät-Grenzen-setzen': 'setzt Grenzen, bevor die eigene Kraft aufgebraucht ist, nicht erst danach',
+  Verantwortungslast: 'gibt Verantwortung ab, die gar nicht mehr die eigene ist, statt weiter alles selbst zu tragen',
+  'Nicht-abschalten-Können': 'schaltet abends wirklich ab, statt gedanklich weiterzuarbeiten',
+  Kraftverlust: 'merkt genau, wo die eigene Kraft hingeht, und schützt sie gezielt',
+  'innere Ruhe': 'kommt spürbar öfter zur Ruhe, ohne dafür extra Zeit frei schaufeln zu müssen',
+  Souveränität: 'trifft Entscheidungen mit spürbar mehr Gelassenheit, ohne sich ständig zu rechtfertigen'
 };
 
 /* Liefert die konkrete Alltags-Klausel zu einem Thema (oder null, wenn
@@ -449,13 +504,21 @@ const PERSON_NOUNS = new Set([
   'Freundin', 'Familie', 'Angestellte', 'Angestellten', 'Vorgesetzte', 'Vorgesetzten'
 ]);
 
+/* Reine Zeiteinheiten-Substantive ("die nächsten 10 Jahre") sind
+   grammatisch großgeschrieben, aber inhaltsleer als Thema — ohne diese
+   Sperrliste würde der Fallback z. B. "Jahre" statt eines echten
+   Themas greifen, sobald ein Satz mit einer Jahresangabe beginnt. */
+const TIME_UNIT_NOUNS = new Set([
+  'Jahre', 'Jahren', 'Jahr', 'Wochen', 'Woche', 'Monate', 'Monaten', 'Monat', 'Tage', 'Tagen', 'Tag', 'Zeit'
+]);
+
 /* Deutsche Substantive werden großgeschrieben — nutzt das, um ohne
    NLU einen plausiblen Kern-Begriff als Fallback zu erraten. */
 function capitalNounGuess(text) {
   const words = text.replace(/[„""]/g, '').split(/\s+/);
   for (let i = 1; i < words.length; i++) {
     const w = words[i].replace(/[.,!?;:]+$/, '');
-    if (w.length > 3 && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w) && !CAP_PRONOUNS.has(w) && !PERSON_NOUNS.has(w)) {
+    if (w.length > 3 && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w) && !CAP_PRONOUNS.has(w) && !PERSON_NOUNS.has(w) && !TIME_UNIT_NOUNS.has(w)) {
       return w;
     }
   }
@@ -490,20 +553,35 @@ function isGenericTheme(noun) {
   return themeTier(noun) >= GENERIC_TIER_START;
 }
 
+/* Für Namenszwecke gekürzte Form eines Themas: mehrteilige Themen (z. B.
+   "Eltern-Kind-Streit", "Nähe-Distanz-Muster") werden auf ihr letztes,
+   meist aussagekräftigstes Wort reduziert. Nötig, damit ein aus zwei
+   Themen kombinierter Name nicht auf 5–6 Wörter anwächst (verbotenes
+   Beispiel: "Konflikt-Eltern-Kind-Streit-Ursachen-Scanner"). Der volle
+   Begriff bleibt in Subline/Details unangetastet, nur der Tool-Name
+   selbst wird gekürzt — Namen sollen max. 4–5 Wörter haben. */
+function shortTheme(theme) {
+  if (!theme) return theme;
+  const parts = theme.split('-');
+  return parts.length > 2 ? parts[parts.length - 1] : theme;
+}
+
 /* Baut den Themen-Baustein für einen Tool-Namen: ein bereits konkretes
    Thema (Tier A–C, z. B. "Hausaufgaben-Stress", "Kontrollverhalten")
    bleibt allein stehen, weil es selbst schon eine erkennbare Alltags-
-   situation beschreibt. Ein generisches Thema (Tier D–F, z. B. "Stress",
-   "Motivation", "Team") wird stattdessen mit einem zweiten, andersartigen
-   Thema zu einem konkreten Zwei-Themen-Namen kombiniert (siehe Vorgabe-
-   Beispiel "Nähe-Rückzug-Muster-Check") — ein Tool-Name besteht dadurch
-   nie mehr aus nur einem abstrakten Begriff plus Format-Suffix. */
+   situation beschreibt und in dieser Tier-Gruppe ohnehin nie mehr als
+   2 Wörter lang ist. Ein generisches Thema (Tier D+, z. B. "Stress",
+   "Motivation", "Team" — dort immer ein einzelnes kurzes Wort) wird
+   stattdessen mit einem zweiten, andersartigen (und für den Namen
+   gekürzten) Thema zu einem konkreten Zwei-Themen-Namen kombiniert
+   (siehe Vorgabe-Beispiel "Nähe-Rückzug-Muster-Check") — ein Tool-Name
+   besteht dadurch nie mehr aus nur einem abstrakten Begriff plus
+   Format-Suffix. */
 function buildNameThema(primary, ...alternatives) {
   if (!isGenericTheme(primary)) return primary;
   const specific = alternatives.find((t) => t && t !== primary && !isGenericTheme(t));
-  if (specific) return `${primary}-${specific}`;
-  const anyOther = alternatives.find((t) => t && t !== primary);
-  return anyOther ? `${primary}-${anyOther}` : primary;
+  const partner = specific || alternatives.find((t) => t && t !== primary);
+  return partner ? `${primary}-${shortTheme(partner)}` : primary;
 }
 
 /* Sammelt ALLE passenden Themen einer Antwort (nicht nur das erste), damit
@@ -671,6 +749,12 @@ function buildIdeas(answers) {
   const expertiseReichhaltig = expertise.trim().split(/\s+/).length >= 10;
   const problemReichhaltig = problem.trim().split(/\s+/).length >= 12;
   const traumReichhaltig = traum.trim().split(/\s+/).length >= 12;
+
+  /* Reagiert die Zielgruppe stark auf Lebensphase/Identität/Zukunft,
+     tritt Blueprint 5 als Zukunftsplaner statt als Bereitschafts-Check
+     an — siehe Vorgabe-Punkte 2/8/9/11 ("mindestens eine Zukunfts-Idee,
+     wenn es zur Zielgruppe passt"). */
+  const zukunftSignal = ZUKUNFT_SIGNAL.test(`${zg} ${problem} ${traum}`);
 
   /* Echte Diagnose-Alternativen für die Kompass-Idee: bis zu 3 weitere,
      vom Kern-Thema verschiedene Konzepte aus dem gemeinsamen Themen-Pool
@@ -863,14 +947,66 @@ function buildIdeas(answers) {
     boosts: methodeReichhaltig ? { individualisierung: 0.1, einzigartigkeit: 0.1, expertise: 0.1 } : {}
   });
 
-  /* ---- 5. Matcher · Bereitschafts-Check (Perspektive: Entscheidung) ----
-     Job dieser Idee (Punkt 8): Hauptfrage — "Bin ich wirklich bereit
-     dafür, oder rede ich mir das nur ein?". Daten — Dringlichkeit beim
-     Problem + Zielklarheit + Veränderungsbereitschaft. Schlussfolgerung
-     — eine abgestufte Passungs-Aussage mit Begründung. Leichtere
-     Handlung — bei starker Passung direkt den ersten Schritt gehen,
-     statt weiter abzuwägen. */
-  blueprints.push({
+  /* ---- 5. Matcher · Bereitschafts-Check ODER Zukunftsplaner ----
+     Reagiert die Zielgruppe stark auf Lebensphase/Identität/Zukunft
+     (zukunftSignal), tritt hier der Zukunftsplaner an: eine Idee, die
+     nicht den aktuellen Ist-Zustand abfragt, sondern das Muster, das
+     nicht in die nächste Lebensphase mitgenommen werden soll (Punkte
+     2/8/9/11). Sonst bleibt es beim bewährten Bereitschafts-Check. */
+  if (zukunftSignal) {
+    /* Job dieser Idee (Punkt 8): Hauptfrage — "Wie will ich die
+       nächsten Jahre gestalten, ohne mich dabei aufzubrauchen?".
+       Daten — aktuelles Belastungsmuster + Wunsch-Bild für die
+       kommenden Jahre + größter Kraftverbrauch aktuell. Schluss-
+       folgerung — welches alte Prinzip nicht mehr mitgenommen werden
+       sollte und welches neue mehr Kraft erhält. Leichtere Handlung —
+       bewusst ein neues Prinzip für die kommende Lebensphase wählen,
+       statt das alte unreflektiert fortzuschreiben. */
+    blueprints.push({
+      id: 'zukunfts-planer',
+      category: 'Zukunftsplaner',
+      toolType: 'Zukunfts- & Identitäts-Planer',
+      name: `Meine nächsten 10 Jahre: ${traumThemaAlt}`,
+      subline: `${p.subjCap} erkennt, welches Belastungsmuster ${p.subj} in den kommenden Jahren nicht mehr mit sich herumtragen möchte, warum es sich gerade jetzt zeigt – und wie ${p.subj} die nächste Zeit mit spürbar mehr ${traumThemaAlt} gestalten kann.`,
+      ioLine: `Aktuelles Belastungsmuster + Wunsch-Bild für die kommenden Jahre → zeigt, welches Muster ${p.subj} nicht mit ins nächste Jahrzehnt nehmen sollte und welches Prinzip künftig mehr ${traumThemaAlt} erhält`,
+      inputs: [
+        `Aktuelles Belastungsmuster im Alltag, z. B. bei ${problemThema}`,
+        `Wunsch-Bild: wie ${p.subj} in 10 Jahren leben und führen möchte`,
+        `Was aktuell am meisten Kraft kostet: ${bereitThema}`
+      ],
+      output: `Zeigt, welches Belastungsmuster ${p.subj} nicht mit ins nächste Jahrzehnt nehmen sollte und welches Prinzip künftig mehr ${traumThemaAlt} erhält.`,
+      whyStrong: [
+        `Beantwortet die Frage: „Wie will ich die nächsten Jahre gestalten, ohne mich dabei aufzubrauchen?“`,
+        `Weil ein Blick nach vorn mehr bewegt als noch eine weitere Bestandsaufnahme des Ist-Zustands.`
+      ],
+      miniPreview: `${p.subjCap} macht seit Längerem im Kern so weiter wie bisher, obwohl ${problemThema} spürbar Kraft kostet → dahinter steckt meist ein altes Prinzip, das nie bewusst überprüft wurde, nicht fehlende Energie → für die kommenden Jahre bewusst ein neues Prinzip setzen, statt das alte einfach fortzuschreiben.`,
+      wowMoment: `${p.subjCap} erkennt: Nicht fehlende Kraft ist das eigentliche Thema, sondern ein altes Prinzip aus einer früheren Lebensphase, das nie überprüft wurde – deshalb kostet dieselbe Aufgabe heute spürbar mehr Kraft als früher. Das entlastet, weil es kein persönliches Versagen ist, sondern ein Prinzip, das sich überholt hat.`,
+      whatNext: `Der nächste sinnvolle Schritt: bewusst entscheiden, welches Prinzip ${p.subj} für die kommenden Jahre wirklich noch tragen will. Was danach noch fehlt: eine Begleitung, die diese Entscheidung über die nächste Lebensphase hinweg stützt – genau das ist der logische nächste Schritt zu Ihrer Begleitung.`,
+      kaufsog: [
+        `${p.subjCap} erkennt jetzt, welches alte Prinzip nicht mehr passt, weiß aber noch nicht, welches neue Prinzip an seine Stelle treten soll.`,
+        `Genau diese Neuausrichtung für die kommenden Jahre ist der nächste logische Schritt in Ihrer Begleitung.`
+      ],
+      salesLine: `Das Tool zeigt, welches alte Prinzip ${p.subj} unnötig Kraft kostet. Ihre Methode hilft dabei, ein neues Prinzip für die kommenden Jahre konkret zu entwickeln. Ihr ${angebotKurz} unterstützt ${p.kundeAcc} dabei, dieses Prinzip dauerhaft im Alltag zu verankern.`,
+      different: `Es fragt nicht nach dem aktuellen Ist-Zustand, sondern danach, welches Prinzip über Jahre hinweg unnötig Kraft kostet, und verbindet das mit einer bewussten Entscheidung für die kommende Lebensphase – das leistet ein klassisches Ist-Zustand-Quiz nicht.`,
+      expertiseFit: `Das Tool nutzt ${methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`}, um nicht nur den aktuellen Engpass, sondern das dahinterliegende Prinzip im Licht Ihrer Expertise (${expertiseThema}) zu bewerten.`,
+      fuerWen: `Besonders stark für alle, die seit Jahren im Kern ähnlich weitermachen und sich konkret wünschen, dass ${concreteBehavior(p.subj, traumThemaAlt)}.`,
+      umsetzung: { label: 'Etwas anspruchsvoller', reason: 'weil aktuelles Muster und Zukunftsbild gemeinsam ausgewertet werden' },
+      recommend: [
+        `Trifft den Punkt, der am meisten wehtut: seit Jahren im Kern so weiterzumachen, obwohl es spürbar mehr Kraft kostet als früher.`,
+        `Der WOW-Moment ist konkret: nicht fehlende Energie, sondern ein altes, nie überprüftes Prinzip ist der eigentliche Kraftverlust.`,
+        `Der Übergang zu Ihrer Begleitung ist natürlich, weil das Tool das alte Prinzip zeigt, das neue Prinzip aber erst in der Begleitung wirklich trägt.`
+      ],
+      scoreBase: { contentqualitaet: 9.7, wow: 9.8, zielgruppenfit: 9.7, spezifitaet: 9.6, verstaendlichkeit: 9.6, habenwollen: 9.7, individualisierung: 9.5, einzigartigkeit: 9.6, leadsog: 9.7, kaufsog: 9.6, umsetzung: 9.2, expertise: 9.5 },
+      boosts: traumReichhaltig ? { wow: 0.1, habenwollen: 0.1 } : {}
+    });
+  } else {
+    /* Job dieser Idee (Punkt 8): Hauptfrage — "Bin ich wirklich bereit
+       dafür, oder rede ich mir das nur ein?". Daten — Dringlichkeit beim
+       Problem + Zielklarheit + Veränderungsbereitschaft. Schlussfolgerung
+       — eine abgestufte Passungs-Aussage mit Begründung. Leichtere
+       Handlung — bei starker Passung direkt den ersten Schritt gehen,
+       statt weiter abzuwägen. */
+    blueprints.push({
     id: 'bereit-check',
     category: 'Matcher',
     toolType: 'Passungs-Check',
@@ -906,7 +1042,8 @@ function buildIdeas(answers) {
     ],
     scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.6, spezifitaet: 9.5, verstaendlichkeit: 9.9, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.5, kaufsog: 9.8, umsetzung: 9.8, expertise: 9.3 },
     boosts: expertiseReichhaltig ? { expertise: 0.1 } : {}
-  });
+    });
+  }
 
   /* ---- Scores berechnen (Elite-Bereich, pro Metrik eigene Schwelle) ----
      Die 5 KPIs mit "kompromisslosem Fokus" (Content-Qualität, WOW,
