@@ -56,14 +56,29 @@
    Zielgruppe gebunden, sichtbar als erster Punkt unter "Warum [Kundin/
    Kunde] das wissen will". Jedes Beispiel-Ergebnis folgt strikt dem
    Muster "Das passiert → Das steckt dahinter → Das können Sie jetzt
-   tun" (Symptom → Ursache → Handlung), das Ergebnisformat (ioLine/
-   output) folgt überall dem Muster "konkretes Element + konkretes
-   Element + nächster Schritt" statt abstrakter Label wie "persönliche
-   Einschätzung". Perspektive bleibt pro Block konsistent: Verkaufslogik
-   und sonstige strategische Analyse sprechen den Experten mit "Ihre
-   Methode/Ihr Angebot/Ihr Coaching" an (2. Person); nur im direkt
-   nutzbaren Beispiel-Ergebnis bleibt "meine Methode" (Ich-Stimme des
-   Anbieters gegenüber der eigenen Kundschaft) stehen. Alle Kern-
+   tun" (Symptom → Ursache → Handlung). Perspektive bleibt pro Block
+   konsistent: Verkaufslogik und sonstige strategische Analyse sprechen
+   den Experten mit "Ihre Methode/Ihr Angebot/Ihr Coaching" an (2.
+   Person); nur im direkt nutzbaren Beispiel-Ergebnis bleibt "meine
+   Methode" (Ich-Stimme des Anbieters gegenüber der eigenen Kundschaft)
+   stehen.
+
+   V8 — Selbstfragen-Runde: Tool-Namen dürfen nie mehr aus einem bloßen
+   generischen Einzelbegriff + Format-Suffix bestehen ("Stress-Check").
+   isGenericTheme()/buildNameThema() (ab THEME_KEYWORDS-Tier D, siehe
+   GENERIC_TIER_START) erzwingen dafür ein konkretes Zwei-Themen-
+   Compound, sobald das führende Thema generisch ist — z. B. wird aus
+   dem bloßen "Team" automatisch "Team-Eigenverantwortung". Jede Idee
+   trägt zusätzlich eine dokumentierte "Job-Definition" als Kommentar
+   direkt über ihrem Blueprint (Hauptfrage, benötigte Daten, Schluss-
+   folgerung, dadurch leichtere Handlung — siehe Punkt 8 der Vorgabe).
+   Sublines folgen jetzt durchgehend der 3-Klausel-Formel "erkennt X,
+   warum Y entsteht, was sie/er konkret anders machen kann"; Eingabe→
+   Ergebnis-Ausgaben sind volle beschreibende Sätze ("zeigt, welches …,
+   wie stark … und welcher nächste Schritt …") statt Nomen-Listen. Das
+   Score-System hat eine fünfte KPI mit kompromisslosem Fokus,
+   Verständlichkeit (≥ 9,6, siehe METRIC_FLOORS/METRIC_WEIGHTS), und der
+   allgemeine Gesamt-Floor liegt jetzt bei 9,5 statt 9,4. Alle Kern-
    Textfelder wurden gegen die erweiterte Floskel-Verbotsliste geprüft
    (siehe META_PATTERNS) und durch konkrete Ursache-Wirkungs-Aussagen
    ersetzt.
@@ -208,14 +223,15 @@ function seededJitter(seed) {
   return (frac - 0.5) * 0.3;
 }
 
-/* V6: pro Metrik eigene Mindestschwelle — die 4 KPIs mit kompromisslosem
-   Fokus (Content-Qualität, WOW, Zielgruppen-Fit, Spezifität) liegen höher
-   als die übrigen Metriken. */
+/* Pro Metrik eigene Mindestschwelle — die 5 KPIs mit kompromisslosem
+   Fokus (Content-Qualität, WOW, Zielgruppen-Fit, Spezifität,
+   Verständlichkeit) liegen höher als die übrigen Metriken. */
 const METRIC_FLOORS = {
   contentqualitaet: 9.4,
   wow: 9.4,
-  zielgruppenfit: 9.5,
-  spezifitaet: 9.5,
+  zielgruppenfit: 9.6,
+  spezifitaet: 9.6,
+  verstaendlichkeit: 9.6,
   habenwollen: 9.2,
   individualisierung: 9.2,
   einzigartigkeit: 9.2,
@@ -223,7 +239,7 @@ const METRIC_FLOORS = {
   kaufsog: 9.2,
   expertise: 9.2,
   umsetzung: 9.2,
-  gesamt: 9.4
+  gesamt: 9.5
 };
 
 function clampScore9(n, key) {
@@ -464,6 +480,32 @@ function themeTier(noun) {
   return THEME_KEYWORDS.length;
 }
 
+/* Ab Tier D ("Angst") gelten Themen als so allgemein, dass sie zusammen
+   mit einem reinen Format-Suffix ("Stress-Check", "Motivations-Analyse")
+   in praktisch jeder Nische unverändert funktionieren würden — genau das
+   verbietet die Anti-Generik-Regel für Tool-Namen. */
+const GENERIC_TIER_START = themeTier('Angst');
+
+function isGenericTheme(noun) {
+  return themeTier(noun) >= GENERIC_TIER_START;
+}
+
+/* Baut den Themen-Baustein für einen Tool-Namen: ein bereits konkretes
+   Thema (Tier A–C, z. B. "Hausaufgaben-Stress", "Kontrollverhalten")
+   bleibt allein stehen, weil es selbst schon eine erkennbare Alltags-
+   situation beschreibt. Ein generisches Thema (Tier D–F, z. B. "Stress",
+   "Motivation", "Team") wird stattdessen mit einem zweiten, andersartigen
+   Thema zu einem konkreten Zwei-Themen-Namen kombiniert (siehe Vorgabe-
+   Beispiel "Nähe-Rückzug-Muster-Check") — ein Tool-Name besteht dadurch
+   nie mehr aus nur einem abstrakten Begriff plus Format-Suffix. */
+function buildNameThema(primary, ...alternatives) {
+  if (!isGenericTheme(primary)) return primary;
+  const specific = alternatives.find((t) => t && t !== primary && !isGenericTheme(t));
+  if (specific) return `${primary}-${specific}`;
+  const anyOther = alternatives.find((t) => t && t !== primary);
+  return anyOther ? `${primary}-${anyOther}` : primary;
+}
+
 /* Sammelt ALLE passenden Themen einer Antwort (nicht nur das erste), damit
    verschiedene Ideen-Karten unterschiedliche, aber jeweils textlich
    begründete Blickwinkel auf dieselbe Zielgruppen-Antwort bekommen können,
@@ -641,20 +683,26 @@ function buildIdeas(answers) {
 
   const blueprints = [];
 
-  /* ---- 1. Diagnose · Muster-Kompass (Perspektive: Ursache/Typ) ---- */
+  /* ---- 1. Diagnose · Muster-Kompass (Perspektive: Ursache/Typ) ----
+     Job dieser Idee (Punkt 8): Hauptfrage — "Warum lande ich bei
+     [Problem] immer wieder im gleichen Muster?". Daten — 6–8 Antworten
+     zu Reaktionsmustern + Einschätzung zum wahrscheinlichsten Auslöser.
+     Schlussfolgerung — welcher von bis zu 3 konkreten Auslösern am
+     wahrscheinlichsten dahintersteckt. Leichtere Handlung — gezielt an
+     der Ursache statt am Symptom ansetzen. */
   blueprints.push({
     id: 'muster-kompass',
     category: 'Diagnose',
     toolType: 'Typ-Analyse / Muster-Test',
-    name: `${problemThema}-Kompass`,
-    subline: `${p.subjCap} erkennt, ob hinter ${problemThema} ${listOr(diagOptions)} steckt – und was ${p.subj} als Erstes verändern sollte.`,
-    ioLine: `6–8 gezielte Fragen zu ${problemThema} und typischen Reaktionsmustern → Ihr wahrscheinlichstes Muster + die konkrete Ursache + eine erste Handlungsempfehlung`,
+    name: `${buildNameThema(problemThema, diagOptions[0], problemThemaAlt, traumThema)}-Kompass`,
+    subline: `${p.subjCap} erkennt, warum ${p.subj} bei ${problemThema} immer wieder ins gleiche Muster rutscht, ob ${listOr(diagOptions)} dahintersteckt – und was ${p.subj} als Erstes anders machen kann, ohne sich zusätzlich unter Druck zu setzen.`,
+    ioLine: `6–8 gezielte Fragen zu ${problemThema} und typischen Reaktionsmustern → zeigt, welches Muster hinter ${problemThema} steckt, wie stark ${diagOptions[0] || problemThemaAlt} mitspielt und welcher erste Schritt das Muster durchbricht`,
     inputs: [
       `6–8 Fragen zu ${problemThema} und typischen Reaktionsmustern im Alltag`,
       `Einschätzung, wie stark ${diagOptions[0] || problemThemaAlt} die aktuelle Situation zusätzlich beeinflusst`,
       `Wunsch-Richtung: wie nah ${p.subj} an ${traumThema} bereits ist`
     ],
-    output: `Ihr wahrscheinlichstes Muster bei ${problemThema}, die konkrete Ursache dahinter (${listOr(diagOptions)}) und eine erste Handlungsempfehlung für diese Woche.`,
+    output: `Zeigt, welches Muster hinter ${problemThema} steckt, wie stark ${diagOptions[0] || problemThemaAlt} mitspielt und welcher erste Schritt das Muster durchbricht.`,
     whyStrong: [
       `Beantwortet die Frage: „Warum lande ich bei ${problemThema} immer wieder im gleichen Muster?“`,
       `Weil klar wird, dass nicht Willensschwäche das Problem ist, sondern ${diagOptions[0] || problemThemaAlt} – das nimmt Druck und zeigt einen konkreten Ansatzpunkt.`
@@ -676,24 +724,29 @@ function buildIdeas(answers) {
       `Der WOW-Moment ist konkret: nicht Willensschwäche, sondern ${diagOptions[0] || problemThemaAlt} ist der wahre Auslöser.`,
       `Der Übergang zu Ihrer Begleitung ist natürlich, weil das Tool den Auslöser zeigt, die dauerhafte Veränderung aber erst in der Begleitung passiert.`
     ],
-    scoreBase: { contentqualitaet: 9.6, wow: 9.6, zielgruppenfit: 9.6, spezifitaet: 9.7, habenwollen: 9.4, individualisierung: 9.4, einzigartigkeit: 9.3, leadsog: 9.6, kaufsog: 9.4, umsetzung: 9.5, expertise: 9.4 },
+    scoreBase: { contentqualitaet: 9.6, wow: 9.6, zielgruppenfit: 9.6, spezifitaet: 9.7, verstaendlichkeit: 9.7, habenwollen: 9.4, individualisierung: 9.4, einzigartigkeit: 9.3, leadsog: 9.6, kaufsog: 9.4, umsetzung: 9.5, expertise: 9.4 },
     boosts: problemReichhaltig ? { wow: 0.1, individualisierung: 0.1 } : {}
   });
 
-  /* ---- 2. Analyse/Audit · Potenzial-Score (Perspektive: Score) ---- */
+  /* ---- 2. Analyse/Audit · Potenzial-Score (Perspektive: Score) ----
+     Job dieser Idee (Punkt 8): Hauptfrage — "Wie weit bin ich wirklich
+     von [Ziel] entfernt?". Daten — 6–8 Einschätzungsfragen + aktueller
+     Stand. Schlussfolgerung — ein Score plus der eine Faktor, der ihn
+     am stärksten senkt. Leichtere Handlung — Energie gezielt in genau
+     diese eine Stellschraube statt breit in alles investieren. */
   blueprints.push({
     id: 'potenzial-score',
     category: 'Analyse / Audit',
     toolType: 'Scorecard',
-    name: `${traumThema}-Score`,
-    subline: `In unter einer Minute berechnet ${p.subjCap} eine ehrliche Zahl dafür, wie nah ${p.subj === 'er' ? 'er' : 'sie'} ${traumThema} wirklich schon ist – und wo genau die größte Lücke liegt.`,
-    ioLine: `6–8 Einschätzungsfragen zu ${traumThema} → Ihr Score + der größte Engpass dahinter + der nächste sinnvolle Schritt`,
+    name: `${buildNameThema(traumThema, problemThema, traumThemaAlt)}-Score`,
+    subline: `${p.subjCap} erkennt, wie nah ${p.subj === 'er' ? 'er' : 'sie'} ${traumThema} wirklich schon ist, welcher einzelne Faktor (${problemThema}) den Fortschritt bisher bremst – und was ${p.subj} konkret als Nächstes verändern kann.`,
+    ioLine: `6–8 Einschätzungsfragen zu ${traumThema} → zeigt, wie nah ${p.subj} an ${traumThema} wirklich ist, welcher Faktor (${problemThema}) am meisten bremst und welcher nächste Schritt am meisten bringt`,
     inputs: [
       `6–8 Einschätzungsfragen zu ${traumThema}`,
       `Aktueller Stand in Bezug auf ${traumThema}`,
       `Einschätzung zur bisherigen Herangehensweise`
     ],
-    output: `Ihr Score für ${traumThema}, der größte Engpass dahinter und der nächste sinnvolle Schritt, um ihn zu schließen.`,
+    output: `Zeigt, wie nah ${p.subj} an ${traumThema} wirklich ist, welcher Faktor (${problemThema}) am meisten bremst und welcher nächste Schritt am meisten bringt.`,
     whyStrong: [
       `Beantwortet die Frage: „Wie weit bin ich eigentlich wirklich von ${traumThema} entfernt?“`,
       `Weil eine konkrete Zahl mehr bewegt als ein diffuses Gefühl – und zeigt, an welcher einzelnen Stelle sich Veränderung am meisten lohnt.`
@@ -715,24 +768,31 @@ function buildIdeas(answers) {
       `Der WOW-Moment ist konkret: der Score zeigt, dass ${problemThema} und nicht fehlender Wille die Punktzahl senkt.`,
       `Der Übergang zu Ihrem Angebot ist natürlich, weil der Score die Lücke zeigt, das Schließen der Lücke aber erst dort passiert.`
     ],
-    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.5, spezifitaet: 9.5, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.4, kaufsog: 9.5, umsetzung: 9.6, expertise: 9.3 },
+    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.5, spezifitaet: 9.5, verstaendlichkeit: 9.8, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.4, kaufsog: 9.5, umsetzung: 9.6, expertise: 9.3 },
     boosts: traumReichhaltig ? { leadsog: 0.1, kaufsog: 0.1 } : {}
   });
 
-  /* ---- 3. Strategie · Fahrplan-Formel (Perspektive: Roadmap) ---- */
+  /* ---- 3. Strategie · Fahrplan-Formel (Perspektive: Roadmap) ----
+     Job dieser Idee (Punkt 8): Hauptfrage — "Warum komme ich bei
+     [Ziel] immer an derselben Stelle nicht weiter?". Daten — aktueller
+     Status quo + Wunsch-Zeitpunkt + größtes Hindernis. Schlussfolgerung
+     — welche Etappe als Nächstes ansteht und wo genau das Hindernis
+     bisher zuschlägt. Leichtere Handlung — für diese eine Etappe einen
+     zusätzlichen Zwischenschritt einplanen statt den ganzen Plan neu
+     aufzurollen. */
   blueprints.push({
     id: 'fahrplan-formel',
     category: 'Strategie',
     toolType: 'Rechner + Roadmap',
-    name: `${traumThemaAlt}-Fahrplan`,
-    subline: `${p.subjCap} erhält einen persönlichen Fahrplan mit 3 bis 4 Etappen, der zeigt, wie ${p.subj === 'er' ? 'er' : 'sie'} ${traumThemaAlt} Schritt für Schritt erreicht.`,
-    ioLine: `Aktueller Stand + Wunsch-Zeitpunkt für ${traumThemaAlt} → Ihre nächste Etappe + der größte Engpass dabei + eine konkrete Handlung für diese Woche`,
+    name: `${buildNameThema(traumThemaAlt, traumThema, problemThema)}-Fahrplan`,
+    subline: `${p.subjCap} erkennt, bei welcher Etappe rund um ${traumThemaAlt} ${p.subj === 'er' ? 'er' : 'sie'} bisher hängen bleibt, warum genau dort ${problemThema} zuschlägt – und was ${p.subj} für diese eine Etappe konkret anders angehen kann.`,
+    ioLine: `Aktueller Stand + Wunsch-Zeitpunkt für ${traumThemaAlt} → zeigt, welche Etappe zu ${traumThemaAlt} als Nächstes ansteht, wo ${problemThema} bisher blockiert und welche Handlung diese Woche den Unterschied macht`,
     inputs: [
       `Aktueller Status quo (Zeit, Ressourcen oder Fortschritt aktuell)`,
       `Wunsch-Zeitpunkt für ${traumThemaAlt}`,
       `Größtes aktuelles Hindernis: ${problemThema}`
     ],
-    output: `Ihre nächste Etappe zu ${traumThemaAlt}, der größte Engpass dabei (${problemThema}) und eine konkrete Handlung für diese Woche.`,
+    output: `Zeigt, welche Etappe zu ${traumThemaAlt} als Nächstes ansteht, wo ${problemThema} bisher blockiert und welche Handlung diese Woche den Unterschied macht.`,
     whyStrong: [
       `Beantwortet die Frage: „Warum komme ich bei ${traumThemaAlt} immer wieder an derselben Stelle nicht weiter?“`,
       `Weil das Scheitern an einer einzelnen Etappe leichter zu akzeptieren ist als das Gefühl, grundsätzlich nicht durchhalten zu können.`
@@ -754,24 +814,30 @@ function buildIdeas(answers) {
       `Der WOW-Moment ist konkret: nicht die ganze Strecke ist das Problem, sondern immer dieselbe Etappe, an der ${problemThema} zuschlägt.`,
       `Der Übergang zu Ihrer Begleitung ist natürlich, weil der Fahrplan die kritische Etappe zeigt, sie tatsächlich meistern hilft aber erst die Begleitung.`
     ],
-    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.5, spezifitaet: 9.5, habenwollen: 9.5, individualisierung: 9.3, einzigartigkeit: 9.3, leadsog: 9.5, kaufsog: 9.6, umsetzung: 9.3, expertise: 9.3 },
+    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.5, spezifitaet: 9.5, verstaendlichkeit: 9.6, habenwollen: 9.5, individualisierung: 9.3, einzigartigkeit: 9.3, leadsog: 9.5, kaufsog: 9.6, umsetzung: 9.3, expertise: 9.3 },
     boosts: {}
   });
 
-  /* ---- 4. Coach · Ursachen-Scanner (Perspektive: Ursache, methodenbasiert) ---- */
+  /* ---- 4. Coach · Ursachen-Scanner (Perspektive: Ursache, methodenbasiert) ----
+     Job dieser Idee (Punkt 8): Hauptfrage — "Liegt es an mir, oder
+     mache ich bei [Problem] etwas grundsätzlich falsch?". Daten — eine
+     konkrete Situation + bisherige Versuche + Wunsch-Ergebnis.
+     Schlussfolgerung — die wahrscheinlichste Ursache nach der eigenen
+     Methode plus 2 typische Anzeichen dafür. Leichtere Handlung — ein
+     erster Schritt, der an der Ursache statt am Symptom ansetzt. */
   blueprints.push({
     id: 'ursachen-scanner',
     category: 'Coach',
     toolType: 'Mini-Coaching-Simulator',
-    name: `${problemThemaAlt}-Ursachen-Scanner`,
-    subline: `${p.subjCap} bekommt in einer kurzen Mini-Session eine erste Einschätzung nach Ihrer eigenen Methode – bezogen auf die eigene Situation bei ${problemThemaAlt}.`,
-    ioLine: `Eine konkrete Situation bei ${problemThemaAlt} + bisherige Versuche → Ihre wahrscheinlichste Ursache + 2 typische Anzeichen + ein erster Schritt`,
+    name: `${buildNameThema(problemThemaAlt, problemThema, traumThema)}-Ursachen-Scanner`,
+    subline: `${p.subjCap} erkennt, warum bisherige Versuche bei ${problemThemaAlt} nicht gewirkt haben, dass ${traumThema} statt des sichtbaren Symptoms der eigentliche Hebel ist – und was ${p.subj} als Nächstes konkret angehen kann.`,
+    ioLine: `Eine konkrete Situation bei ${problemThemaAlt} + bisherige Versuche → zeigt, welche Ursache bei ${problemThemaAlt} am wahrscheinlichsten ist, woran ${p.subj} das im Alltag erkennt und welcher erste Schritt jetzt sinnvoll ist`,
     inputs: [
       `Eine konkrete aktuelle Situation bei ${problemThemaAlt}`,
       `Was bisher schon versucht wurde`,
       `Das gewünschte Ergebnis: ${traumThema}`
     ],
-    output: `Ihre wahrscheinlichste Ursache bei ${problemThemaAlt}, 2 typische Anzeichen dafür und ein erster konkreter Schritt, abgeleitet aus Ihrer Methode (${methodeThema}).`,
+    output: `Zeigt, welche Ursache bei ${problemThemaAlt} am wahrscheinlichsten ist, woran ${p.subj} das im Alltag erkennt und welcher erste Schritt jetzt sinnvoll ist, abgeleitet aus Ihrer Methode (${methodeThema}).`,
     whyStrong: [
       `Beantwortet die Frage: „Liegt es an mir, oder mache ich bei ${problemThemaAlt} etwas grundsätzlich falsch?“`,
       `Weil das Ergebnis direkt an der eigenen Situation entsteht, nicht an einem austauschbaren Beispiel – das macht die Empfehlung sofort nachvollziehbar.`
@@ -793,24 +859,30 @@ function buildIdeas(answers) {
       `Der WOW-Moment ist konkret: ${methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`} setzt woanders an als alle bisherigen Versuche – bei ${traumThema} statt beim sichtbaren Symptom.`,
       `Der Übergang zu Ihrer Begleitung ist natürlich, weil die Mini-Session einen ersten Geschmack gibt, die eigentliche Übertragung auf die eigene Situation aber erst in der Begleitung passiert.`
     ],
-    scoreBase: { contentqualitaet: 9.7, wow: 9.7, zielgruppenfit: 9.7, spezifitaet: 9.8, habenwollen: 9.6, individualisierung: 9.8, einzigartigkeit: 9.8, leadsog: 9.6, kaufsog: 9.5, umsetzung: 9.2, expertise: 9.8 },
+    scoreBase: { contentqualitaet: 9.7, wow: 9.7, zielgruppenfit: 9.7, spezifitaet: 9.8, verstaendlichkeit: 9.7, habenwollen: 9.6, individualisierung: 9.8, einzigartigkeit: 9.8, leadsog: 9.6, kaufsog: 9.5, umsetzung: 9.2, expertise: 9.8 },
     boosts: methodeReichhaltig ? { individualisierung: 0.1, einzigartigkeit: 0.1, expertise: 0.1 } : {}
   });
 
-  /* ---- 5. Matcher · Bereitschafts-Check (Perspektive: Entscheidung) ---- */
+  /* ---- 5. Matcher · Bereitschafts-Check (Perspektive: Entscheidung) ----
+     Job dieser Idee (Punkt 8): Hauptfrage — "Bin ich wirklich bereit
+     dafür, oder rede ich mir das nur ein?". Daten — Dringlichkeit beim
+     Problem + Zielklarheit + Veränderungsbereitschaft. Schlussfolgerung
+     — eine abgestufte Passungs-Aussage mit Begründung. Leichtere
+     Handlung — bei starker Passung direkt den ersten Schritt gehen,
+     statt weiter abzuwägen. */
   blueprints.push({
     id: 'bereit-check',
     category: 'Matcher',
     toolType: 'Passungs-Check',
-    name: `${bereitThema}-Check`,
-    subline: `${p.subjCap} bekommt in wenigen Klicks eine ehrliche Einschätzung, ob jetzt der richtige Zeitpunkt für ${angebotKurz} ist – ganz ohne Verkaufsdruck.`,
-    ioLine: `Dringlichkeit bei ${problemThema} + Zielklarheit bei ${traumThema} → Ihre Passungs-Aussage + die Begründung + der nächste sinnvolle Schritt`,
+    name: `${buildNameThema(bereitThema, problemThema, traumThema)}-Check`,
+    subline: `${p.subjCap} erkennt, ob ${problemThema} bereits dringlich und ${traumThema} klar genug für ${angebotKurz} ist, woran die eigene Zurückhaltung wirklich liegt – und was ${p.subj} jetzt konkret als Nächstes tun kann.`,
+    ioLine: `Dringlichkeit bei ${problemThema} + Zielklarheit bei ${traumThema} → zeigt, ob die Passung zu ${angebotKurz} stimmt, woran das liegt und welcher nächste Schritt jetzt sinnvoll ist`,
     inputs: [
       `Aktuelle Dringlichkeit bei ${problemThema}`,
       `Zielklarheit in Bezug auf ${traumThema}`,
       `Bereitschaft, jetzt aktiv etwas zu verändern`
     ],
-    output: `Ihre Passungs-Aussage zu ${angebotKurz} (starke Passung / teilweise Passung / noch nicht der richtige Zeitpunkt), die Begründung dahinter und der nächste sinnvolle Schritt.`,
+    output: `Zeigt, ob die Passung zu ${angebotKurz} stimmt (starke Passung / teilweise Passung / noch nicht der richtige Zeitpunkt), woran das liegt und welcher nächste Schritt jetzt sinnvoll ist.`,
     whyStrong: [
       `Beantwortet die Frage: „Bin ich wirklich bereit dafür, oder rede ich mir das nur ein?“`,
       `Weil eine ehrliche Antwort die Entscheidung leichter macht als noch mehr Abwägen im Kopf.`
@@ -832,18 +904,18 @@ function buildIdeas(answers) {
       `Der WOW-Moment ist konkret: nicht mangelnde Eignung hält zurück, sondern eine einzige unbeantwortete Frage zu ${traumThema}.`,
       `Der Übergang zu Ihrem Angebot ist natürlich, weil der Check die Zögerlichkeit auflöst und damit den ersten Schritt selbst schon leicht macht.`
     ],
-    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.6, spezifitaet: 9.5, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.5, kaufsog: 9.8, umsetzung: 9.8, expertise: 9.3 },
+    scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.6, spezifitaet: 9.5, verstaendlichkeit: 9.9, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.5, kaufsog: 9.8, umsetzung: 9.8, expertise: 9.3 },
     boosts: expertiseReichhaltig ? { expertise: 0.1 } : {}
   });
 
   /* ---- Scores berechnen (Elite-Bereich, pro Metrik eigene Schwelle) ----
-     Die 4 KPIs mit "kompromisslosem Fokus" (Content-Qualität, WOW,
-     Zielgruppen-Fit, Spezifität) tragen zusammen über die Hälfte des
-     Gewichts am Gesamt-Potenzial. */
+     Die 5 KPIs mit "kompromisslosem Fokus" (Content-Qualität, WOW,
+     Zielgruppen-Fit, Spezifität, Verständlichkeit) tragen zusammen fast
+     zwei Drittel des Gewichts am Gesamt-Potenzial. */
   const METRIC_WEIGHTS = {
-    contentqualitaet: 0.14, wow: 0.14, zielgruppenfit: 0.14, spezifitaet: 0.14,
-    habenwollen: 0.07, individualisierung: 0.06, einzigartigkeit: 0.06,
-    leadsog: 0.08, kaufsog: 0.08, expertise: 0.05, umsetzung: 0.04
+    contentqualitaet: 0.12, wow: 0.13, zielgruppenfit: 0.13, spezifitaet: 0.13, verstaendlichkeit: 0.12,
+    habenwollen: 0.06, individualisierung: 0.05, einzigartigkeit: 0.05,
+    leadsog: 0.07, kaufsog: 0.07, expertise: 0.04, umsetzung: 0.03
   };
 
   let ideas = blueprints.map((bp, i) => {
@@ -995,6 +1067,7 @@ const SCORE_LABELS = {
   wow: 'WOW-Effekt',
   zielgruppenfit: 'Zielgruppen-Fit',
   spezifitaet: 'Spezifität',
+  verstaendlichkeit: 'Verständlichkeit',
   habenwollen: 'Haben-wollen',
   individualisierung: 'Individualisierung',
   einzigartigkeit: 'Einzigartigkeit',
@@ -1005,7 +1078,7 @@ const SCORE_LABELS = {
 };
 
 function renderScoreGrid(scores) {
-  const order = ['contentqualitaet', 'wow', 'zielgruppenfit', 'spezifitaet', 'habenwollen', 'individualisierung', 'einzigartigkeit', 'leadsog', 'kaufsog', 'umsetzung', 'expertise'];
+  const order = ['contentqualitaet', 'wow', 'zielgruppenfit', 'spezifitaet', 'verstaendlichkeit', 'habenwollen', 'individualisierung', 'einzigartigkeit', 'leadsog', 'kaufsog', 'umsetzung', 'expertise'];
   return `<div class="score-grid">${order.map((key) => `
     <div class="score-item">
       <div class="score-label-row"><span>${SCORE_LABELS[key]}</span><strong>${formatScore(scores[key])}/10</strong></div>
