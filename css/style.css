@@ -516,6 +516,13 @@ body.modal-open { overflow: hidden; }
 
 /* Eingabe → Ergebnis, kompakte Zeile */
 
+.io-line-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ci-blue);
+  margin: 0 0 6px;
+}
+
 .io-line {
   display: flex;
   align-items: center;
@@ -692,11 +699,9 @@ body.modal-open { overflow: hidden; }
 }
 
 .idea-field dt {
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-faint);
+  color: var(--ci-blue);
   margin-bottom: 4px;
 }
 
@@ -706,11 +711,9 @@ body.modal-open { overflow: hidden; }
 }
 
 .detail-scores-label {
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-faint);
+  color: var(--ci-blue);
   margin: 0 0 10px;
 }
 
