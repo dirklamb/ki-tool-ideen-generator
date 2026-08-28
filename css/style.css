@@ -487,33 +487,6 @@ body.modal-open { overflow: hidden; }
   border-left: 3px solid var(--ci-blue);
 }
 
-/* "Warum diese Idee gewinnt" — nur Top-Empfehlung. Heller Hintergrund mit
-   dünnem Gold-Rahmen statt einer großen goldbraunen Fläche. */
-
-.win-reasons {
-  background: var(--bg-alt);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 14px 18px;
-  margin: 0 0 18px;
-}
-
-.win-reasons h4 {
-  margin: 0 0 8px;
-  font-size: 0.92rem;
-  color: var(--accent-dark);
-}
-
-.win-reasons ul {
-  margin: 0;
-  padding-left: 18px;
-}
-
-.win-reasons li {
-  margin-bottom: 3px;
-  font-size: 0.92rem;
-}
-
 /* Eingabe → Ergebnis, kompakte Zeile */
 
 .io-line-label {
@@ -593,16 +566,6 @@ body.modal-open { overflow: hidden; }
   font-size: 0.94rem;
   color: var(--ink);
 }
-
-/* Umsetzbarkeit */
-
-.umsetzung-line {
-  font-size: 0.92rem;
-  color: var(--ink-soft);
-  margin: 0 0 16px;
-}
-
-.umsetzung-line strong { color: var(--ink); }
 
 /* Gesamt-Potenzial & Lead-Sog — auf sehr hellem, neutralem Hintergrund mit
    je einem farbigen Akzent (Gold für die Hauptkennzahl, Blau für Lead-Sog),
@@ -692,10 +655,45 @@ body.modal-open { overflow: hidden; }
 
 .idea-details.open { display: block; animation: fadeUp 0.3s ease both; }
 
+/* Details-Cluster: Aha / Sog / Strategie */
+
+.detail-cluster {
+  margin: 0 0 26px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-cluster:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.detail-cluster-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
 .idea-fields {
   display: grid;
   gap: 16px;
+  margin-bottom: 0;
+}
+
+.detail-cluster .idea-fields:not(:last-child) {
   margin-bottom: 22px;
+}
+
+.kaufsog-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.kaufsog-list li {
+  margin-bottom: 4px;
 }
 
 .idea-field dt {

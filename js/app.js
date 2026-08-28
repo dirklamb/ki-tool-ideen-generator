@@ -35,16 +35,24 @@
    jeweiligen Metrik-Schwelle, Top-Idee unter 9,7 Gesamt-Potenzial).
 
    Feinschliff-Runde: Detail-Headlines (idea-field dt, Detail-Bewertung,
-   neue "Eingabe → Ergebnis"-Überschrift) verwenden jetzt normale Groß-/
-   Kleinschreibung statt CSS-Kapitälchen, in DSC-Blau (--ci-blue), siehe
-   wowLabel/subjGen. In direkt nutzbarer Ergebnis-/Angebotssprache
-   (Beispiel-Ergebnis, Verkaufslogik) spricht der Text konsequent aus
-   Sicht des Anbieters ("meine Methode", "mein Angebot") statt aus der
-   Meta-Perspektive ("Ihre Methode"); reine Experten-Meta-Texte behalten
-   die zweite Person bei. Alle Kern-Textfelder (Warum diese Idee gewinnt,
-   Beispiel-Ergebnis, Warum stark, WOW-Moment, Verkaufslogik, Was dieses
-   Tool anders macht) wurden gegen die Floskel-Verbotsliste geprüft und
-   durch konkrete Ursache-Wirkungs-Aussagen ersetzt.
+   "Eingabe → Ergebnis"-Überschrift) verwenden normale Groß-/Kleinschreibung
+   statt CSS-Kapitälchen, in DSC-Blau (--ci-blue), siehe wowLabel/subjGen.
+
+   Struktur-Runde: Die Hauptkarte zeigt nur noch Name, Subline, Eingabe→
+   Ergebnis, Beispiel-Ergebnis, "Warum stark" (max. 2 Punkte), Gesamt-
+   Potenzial, Lead-Sog und den Bau-Prompt-Button — das frühere "Warum
+   diese Idee gewinnt"-Kästchen und die Umsetzungs-Zeile sind entfallen.
+   Die Details sind in 3 Cluster gegliedert (siehe renderIdeaCard):
+   "Aha" (WOW-Moment), "Sog" (was die Person danach tun will + das neue
+   kaufsog-Feld mit max. 2 Punkten, die je eine offene Frage nach dem
+   Ergebnis und deren logische Brücke zum Angebot benennen) und
+   "Strategie" (Verkaufslogik, Abgrenzung, Expertise-Fit, Detail-Scores).
+   In der Verkaufslogik spricht der Text wieder konsequent den Experten
+   mit "Ihre Methode/Ihr Angebot/Ihr Coaching" an (2. Person); nur im
+   direkt nutzbaren Beispiel-Ergebnis bleibt "meine Methode" (Ich-Stimme
+   des Anbieters gegenüber der eigenen Kundschaft) stehen. Alle Kern-
+   Textfelder wurden gegen die Floskel-Verbotsliste geprüft (siehe
+   META_PATTERNS) und durch konkrete Ursache-Wirkungs-Aussagen ersetzt.
    ========================================================================== */
 
 /* ---------------------------------------------------------------------- *
@@ -389,11 +397,13 @@ function collectThemeMatches(text) {
 const META_PATTERNS = [
   /aha-moment/i,
   /wunsch-kunden erkennen/i,
-  /erzeugt einen? aha/i
+  /erzeugt einen? aha/i,
+  /natürliche[ns]? nächste[ns]? wunsch ist mehr von (ihnen|mir)/i,
+  /(tool|es) (erzeugt|schafft) (kauf-?sog|klarheit)\.?\s*$/i
 ];
 
 function lintIdea(idea) {
-  const textFields = [idea.subline, idea.wowMoment, idea.whatNext, ...idea.whyStrong];
+  const textFields = [idea.subline, idea.wowMoment, idea.whatNext, ...idea.whyStrong, ...idea.kaufsog];
   textFields.forEach((text) => {
     META_PATTERNS.forEach((re) => {
       if (re.test(text)) {
@@ -555,12 +565,15 @@ function buildIdeas(answers) {
       `Unterscheidet ${listAnd([problemThema].concat(diagOptions))} als mögliche Ursachen, statt sie in einen Topf zu werfen.`
     ],
     miniPreview: `${problemThema} wirkt für ${p.subjAcc} wie ein einmaliger Ausrutscher – tatsächlich folgt es einem festen Auslöser: ${diagOptions[0] || problemThemaAlt}. Sobald dieser Auslöser sichtbar ist, ändert sich auch der nächste Schritt: nicht das Symptom bekämpfen, sondern gezielt den Auslöser entschärfen.`,
-    wowMoment: `${p.subjCap} erkennt: Nicht mangelnde Disziplin erzeugt ${problemThema}, sondern der bisher unbewusste Zusammenhang mit ${diagOptions[0] || problemThemaAlt} – deshalb ist jeder gute Vorsatz bisher wirkungslos verpufft.`,
+    wowMoment: `${p.subjCap} erkennt: Nicht mangelnde Disziplin erzeugt ${problemThema}, sondern der bisher unbewusste Zusammenhang mit ${diagOptions[0] || problemThemaAlt} – deshalb ist jeder gute Vorsatz bisher wirkungslos verpufft. Das entlastet, weil es nie am eigenen Willen lag.`,
     whatNext: `${p.subjCap} will jetzt verstehen, wie sich genau dieser Auslöser dauerhaft entschärfen lässt – nicht nur, wie ${p.subj} das nächste Mal übersteht.`,
-    salesLine: `Das Tool zeigt, dass ${diagOptions[0] || problemThemaAlt} der eigentliche Auslöser hinter ${problemThema} ist. Mein ${angebotKurz} hilft dabei, genau diesen Auslöser dauerhaft zu verändern.`,
+    kaufsog: [
+      `${p.subjCap} erkennt jetzt den Auslöser (${diagOptions[0] || problemThemaAlt}) hinter ${problemThema}, weiß aber noch nicht, wie ${p.subj} ihn im Alltag dauerhaft entschärft.`,
+      `Genau diese Umsetzung ist der nächste logische Schritt in Ihrer Begleitung.`
+    ],
+    salesLine: `Das Tool zeigt, dass ${diagOptions[0] || problemThemaAlt} der eigentliche Auslöser hinter ${problemThema} ist. Ihr ${angebotKurz} hilft dabei, genau diesen Auslöser dauerhaft zu verändern.`,
     different: `Es bleibt nicht bei einer Kategorie stehen, sondern verbindet den erkannten Auslöser (${diagOptions[0] || problemThemaAlt}) direkt mit einem konkreten nächsten Schritt – das leistet ein einzelner Chatbot-Prompt ohne Ihre eigene Gewichtung nicht.`,
     expertiseFit: `Das Tool nutzt ${methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`}, um das ${problemThema}-Muster im Licht Ihrer Expertise (${expertiseThema}) auszuwerten statt mit generischem Coaching-Wissen.`,
-    umsetzung: { label: 'Einfach', time: 'ca. 25–35 Minuten' },
     scoreBase: { contentqualitaet: 9.6, wow: 9.6, zielgruppenfit: 9.6, spezifitaet: 9.7, habenwollen: 9.4, individualisierung: 9.4, einzigartigkeit: 9.3, leadsog: 9.6, kaufsog: 9.4, umsetzung: 9.5, expertise: 9.4 },
     boosts: problemReichhaltig ? { wow: 0.1, individualisierung: 0.1 } : {}
   });
@@ -584,12 +597,15 @@ function buildIdeas(answers) {
       `Zeigt nicht nur eine Zahl, sondern konkret, welcher einzelne Faktor den Score gerade am stärksten senkt.`
     ],
     miniPreview: `Score 58/100: ${p.subj} ist ${traumThema} näher, als das eigene Gefühl vermuten lässt – doch ein einzelner Faktor zieht den Wert massiv nach unten, meist ${problemThema} statt fehlender Wille. Genau dort liegt die größte Lücke, nicht dort, wo ${p.subj} sie vermutet hätte.`,
-    wowMoment: `${p.subjCap} merkt: Nicht fehlende Motivation hält den Score unten, sondern eine einzige übersehene Stellschraube namens ${problemThema} – deshalb halfen bisherige Versuche immer nur kurzfristig.`,
+    wowMoment: `${p.subjCap} merkt: Nicht fehlende Motivation hält den Score unten, sondern eine einzige übersehene Stellschraube namens ${problemThema} – deshalb halfen bisherige Versuche immer nur kurzfristig. Das entlastet, weil nicht die ganze Person „das Problem“ ist, sondern nur diese eine Stellschraube.`,
     whatNext: `${p.subjCap} will wissen, wie sich ${problemThema} gezielt auflösen lässt, statt weiter nur am sichtbaren Symptom zu arbeiten.`,
-    salesLine: `Das Tool zeigt die größte Lücke zwischen jetzt und ${traumThema}. Mein ${angebotKurz} hilft dabei, genau diese Lücke strukturiert zu schließen.`,
+    kaufsog: [
+      `${p.subjCap} kennt jetzt die eine Lücke (${problemThema}), die den Score senkt, weiß aber noch nicht, mit welchen konkreten Schritten sie sich schließen lässt.`,
+      `Genau dieses Schließen der Lücke ist der nächste logische Schritt in Ihrem Angebot.`
+    ],
+    salesLine: `Das Tool zeigt die größte Lücke zwischen jetzt und ${traumThema}. Ihr ${angebotKurz} hilft dabei, genau diese Lücke strukturiert zu schließen.`,
     different: `Der Score wertet mehrere Faktoren gemeinsam aus und priorisiert automatisch die eine Stellschraube mit dem größten Hebel – das leistet ein einzelner Online-Test nicht.`,
     expertiseFit: `Die Bewertungskriterien des Scores sind aus Ihrer Expertise (${expertiseThema}) abgeleitet, nicht aus einer allgemeinen Checkliste.`,
-    umsetzung: { label: 'Einfach', time: 'ca. 25–35 Minuten' },
     scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.5, spezifitaet: 9.5, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.4, kaufsog: 9.5, umsetzung: 9.6, expertise: 9.3 },
     boosts: traumReichhaltig ? { leadsog: 0.1, kaufsog: 0.1 } : {}
   });
@@ -613,12 +629,15 @@ function buildIdeas(answers) {
       `Jede Etappe endet mit einer Handlung für diese Woche, nicht mit einem weiteren guten Vorsatz.`
     ],
     miniPreview: `Etappe 2 von 4 stockt bei den meisten immer an derselben Stelle: ${problemThema} bremst jeden Anlauf aus, bevor er wirkt. Sobald genau diese Etappe anders angegangen wird, rückt ${traumThemaAlt} spürbar näher.`,
-    wowMoment: `${p.subjCap} erkennt: Bisherige Anläufe scheiterten nicht an mangelnder Willenskraft, sondern daran, dass ${problemThema} immer an derselben Etappe zuschlug, bevor eine Routine entstehen konnte.`,
+    wowMoment: `${p.subjCap} erkennt: Bisherige Anläufe scheiterten nicht an mangelnder Willenskraft, sondern daran, dass ${problemThema} immer an derselben Etappe zuschlug, bevor eine Routine entstehen konnte. Das entlastet, weil nicht der ganze Fahrplan falsch war, sondern nur eine einzige Etappe.`,
     whatNext: `${p.subjCap} will wissen, wie sich ausgerechnet diese eine kritische Etappe diesmal anders angehen lässt als bei den letzten Versuchen.`,
-    salesLine: `Das Tool zeigt den Fahrplan zu ${traumThemaAlt} und die Etappe, an der ${problemThema} bisher blockiert hat. Mein ${angebotKurz} begleitet genau diese Etappe, bis sie wirklich sitzt.`,
+    kaufsog: [
+      `${p.subjCap} kennt jetzt die kritische Etappe, an der ${problemThema} bisher blockiert, weiß aber noch nicht, wie ${p.subj} sie diesmal anders meistert.`,
+      `Genau diese Umsetzung der kritischen Etappe ist der nächste logische Schritt in Ihrer Begleitung.`
+    ],
+    salesLine: `Das Tool zeigt den Fahrplan zu ${traumThemaAlt} und die Etappe, an der ${problemThema} bisher blockiert hat. Ihr ${angebotKurz} begleitet genau diese Etappe, bis sie wirklich sitzt.`,
     different: `Die Etappen sind nicht gleichmäßig verteilt wie bei einem Standard-Fahrplan, sondern setzen genau dort einen zusätzlichen Zwischenschritt, wo ${problemThema} erfahrungsgemäß zuschlägt.`,
     expertiseFit: `Die Etappen der Roadmap folgen ${methodeThema === 'Ihrer Methode' ? 'Ihrer eigenen Methode' : `Ihrer Methode „${methodeThema}“`}, nicht einem austauschbaren Standard-Fahrplan.`,
-    umsetzung: { label: 'Einfach', time: 'ca. 30–40 Minuten' },
     scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.5, spezifitaet: 9.5, habenwollen: 9.5, individualisierung: 9.3, einzigartigkeit: 9.3, leadsog: 9.5, kaufsog: 9.6, umsetzung: 9.3, expertise: 9.3 },
     boosts: {}
   });
@@ -642,12 +661,15 @@ function buildIdeas(answers) {
       `Die Empfehlung entsteht ausschließlich aus ${methodeThema === 'Ihrer Methode' ? 'Ihrer Methode' : `Ihrer Methode „${methodeThema}“`} – ein austauschbarer Chatbot-Prompt käme zu einem anderen Ergebnis.`
     ],
     miniPreview: `${problemThemaAlt} wirkt bei den meisten wie fehlende Willenskraft – tatsächlich liegt der Hebel eine Ebene tiefer, bei ${traumThema}. Genau dort setzt meine Methode ein, nicht beim sichtbaren Symptom.`,
-    wowMoment: `${p.subjCap} erkennt: Bisherige Versuche scheiterten nicht am fehlenden Willen, sondern daran, dass bisher niemand bei ${traumThema} statt beim sichtbaren Symptom ${problemThemaAlt} angesetzt hat – genau da setzt ${methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`} an.`,
+    wowMoment: `${p.subjCap} erkennt: Bisherige Versuche scheiterten nicht am fehlenden Willen, sondern daran, dass bisher niemand bei ${traumThema} statt beim sichtbaren Symptom ${problemThemaAlt} angesetzt hat – genau da setzt ${methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`} an. Das entlastet, weil frühere Versuche nicht falsch waren, nur am falschen Punkt angesetzt haben.`,
     whatNext: `${p.subjCap} will die eigene Situation ausführlicher und persönlich mit Ihnen durchgehen, weil die Mini-Session gerade gezeigt hat, wie viel eine ganze Sitzung bringen würde.`,
-    salesLine: `Das Tool zeigt, wie ${methodeThema === 'Ihrer Methode' ? 'meine Methode' : `meine Methode „${methodeThema}“`} auf die eigene Situation bei ${problemThemaAlt} wirkt. Mein ${angebotKurz} vertieft genau das in einer echten, persönlichen Begleitung.`,
+    kaufsog: [
+      `${p.subjCap} erkennt in der Mini-Session, dass ${traumThema} statt ${problemThemaAlt} der eigentliche Hebel ist, weiß aber noch nicht, wie sich das auf die eigene, komplexere Situation übertragen lässt.`,
+      `Genau dieser Transfer auf die eigene Situation ist der nächste logische Schritt in Ihrer persönlichen Begleitung.`
+    ],
+    salesLine: `Das Tool zeigt, wie ${methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`} auf die eigene Situation bei ${problemThemaAlt} wirkt. Ihr ${angebotKurz} vertieft genau das in einer echten, persönlichen Begleitung.`,
     different: `Es wendet konkret ${methodeThema === 'Ihrer Methode' ? 'Ihre eigenen Bewertungskriterien' : `die Kriterien Ihrer Methode „${methodeThema}“`} auf die geschilderte Situation an – nicht austauschbares Coaching-Grundwissen, das in jeder Nische gleich klingen würde.`,
     expertiseFit: `Die Logik basiert direkt auf ${methodeThema === 'Ihrer Methode' ? 'Ihrer Methode' : `Ihrer Methode „${methodeThema}“`} und wertet ${problemThemaAlt} genau so aus, wie Sie es in einer echten Sitzung tun würden.`,
-    umsetzung: { label: 'Mittel', time: 'ca. 40–60 Minuten' },
     scoreBase: { contentqualitaet: 9.7, wow: 9.7, zielgruppenfit: 9.7, spezifitaet: 9.8, habenwollen: 9.6, individualisierung: 9.8, einzigartigkeit: 9.8, leadsog: 9.6, kaufsog: 9.5, umsetzung: 9.2, expertise: 9.8 },
     boosts: methodeReichhaltig ? { individualisierung: 0.1, einzigartigkeit: 0.1, expertise: 0.1 } : {}
   });
@@ -671,12 +693,15 @@ function buildIdeas(answers) {
       `Wer merkt, dass ${problemThema} bereits dringlich genug ist, muss sich nicht mehr selbst überzeugen – der Check übernimmt das.`
     ],
     miniPreview: `„Starke Passung“: ${problemThema} drückt spürbar, und ${traumThema} ist längst klar umrissen – die einzige offene Frage war bisher der Zeitpunkt. Der Check beantwortet sie: jetzt fehlt nur noch der erste Schritt zu ${angebotKurz}.`,
-    wowMoment: `${p.subjCap} erkennt: Die eigene Zurückhaltung lag nie an mangelnder Eignung, sondern an einer einzigen unbeantworteten Frage zu ${traumThema} – und genau die beantwortet der Check gerade.`,
+    wowMoment: `${p.subjCap} erkennt: Die eigene Zurückhaltung lag nie an mangelnder Eignung, sondern an einer einzigen unbeantworteten Frage zu ${traumThema} – und genau die beantwortet der Check gerade. Das entlastet, weil das Zögern nie ein Zeichen von Unentschlossenheit war, sondern von genau dieser offenen Frage.`,
     whatNext: `${p.subjCap} will bei starker Passung den nächsten konkreten Schritt gehen, ohne noch länger abzuwägen, weil die Unsicherheit gerade aufgelöst wurde.`,
-    salesLine: `Das Tool zeigt schwarz auf weiß, ob ${problemThema} dringlich und ${traumThema} klar genug sind. Mein ${angebotKurz} ist bei starker Passung der nächste folgerichtige Schritt.`,
+    kaufsog: [
+      `${p.subjCap} weiß jetzt, dass die Passung stimmt, aber noch nicht, wie der erste konkrete Schritt in ${angebotKurz} tatsächlich aussieht.`,
+      `Genau diese Frage nach dem „Wie fange ich an“ beantwortet nur ${angebotKurz} selbst.`
+    ],
+    salesLine: `Das Tool zeigt schwarz auf weiß, ob ${problemThema} dringlich und ${traumThema} klar genug sind. Ihr ${angebotKurz} ist bei starker Passung der nächste folgerichtige Schritt.`,
     different: `Die Passung entsteht aus dem Zusammenspiel von Dringlichkeit bei ${problemThema} und Zielklarheit bei ${traumThema} – nicht aus einem einzelnen Pauschal-Kriterium wie bei einem Standard-Quiz.`,
     expertiseFit: `Die Passungs-Kriterien spiegeln, was bei Ihnen wirklich funktioniert: ${expertiseThema}.`,
-    umsetzung: { label: 'Sehr einfach', time: 'ca. 20–30 Minuten' },
     scoreBase: { contentqualitaet: 9.5, wow: 9.5, zielgruppenfit: 9.6, spezifitaet: 9.5, habenwollen: 9.3, individualisierung: 9.3, einzigartigkeit: 9.2, leadsog: 9.5, kaufsog: 9.8, umsetzung: 9.8, expertise: 9.3 },
     boosts: expertiseReichhaltig ? { expertise: 0.1 } : {}
   });
@@ -717,10 +742,10 @@ function buildIdeas(answers) {
       miniPreview: bp.miniPreview,
       wowMoment: bp.wowMoment,
       whatNext: bp.whatNext,
+      kaufsog: bp.kaufsog,
       salesLine: bp.salesLine,
       different: bp.different,
       expertiseFit: bp.expertiseFit,
-      umsetzung: bp.umsetzung,
       wowLabel: `Der WOW-Moment ${p.subjGen}`,
       nextLabel: `Was ${p.kunde} danach wahrscheinlich tun will`,
       scores
@@ -743,51 +768,9 @@ function buildIdeas(answers) {
     idea.isTop = i === 0;
   });
 
-  const winCtx = {
-    subj: p.subj,
-    problemThema,
-    problemThemaAlt,
-    traumThema,
-    traumThemaAlt,
-    diagTop: diagOptions[0] || problemThemaAlt,
-    methodeLabel: methodeThema === 'Ihrer Methode' ? 'Ihre Methode' : `Ihre Methode „${methodeThema}“`,
-    angebotKurz
-  };
-  ideas[0].winReasons = buildWinReasons(ideas[0], winCtx);
   ideas.forEach(lintIdea);
 
   return ideas;
-}
-
-function buildWinReasons(idea, a) {
-  const pool = {
-    'muster-kompass': [
-      `Beantwortet die Frage, die ${a.subj} sich insgeheim am häufigsten stellt: „Warum passiert mir das immer wieder?“ bei ${a.problemThema}.`,
-      `Deckt auf, dass ${a.diagTop} der eigentliche Auslöser ist – eine Verbindung, die kein Ratgeber-Artikel so konkret benennt.`,
-      `Wer den Auslöser einmal sieht, will ihn nicht mehr allein angehen – das führt direkt zu ${a.angebotKurz}.`
-    ],
-    'potenzial-score': [
-      `Beantwortet die Frage, die sich ${a.subj} insgeheim stellt: „Wie weit bin ich wirklich von ${a.traumThema} entfernt?“`,
-      `Zeigt eine Zahl, die überrascht – meist liegt ${a.subj} näher am Ziel, als das eigene Gefühl vermuten lässt, aber an einer unerwarteten Stelle fest.`,
-      `Ein niedriger Wert an genau dieser Stelle macht den nächsten Schritt unausweichlich – direkt zu ${a.angebotKurz}.`
-    ],
-    'fahrplan-formel': [
-      `Beantwortet die Frage, die jeden Anlauf zu ${a.traumThemaAlt} bisher begleitet hat: „An welcher Stelle werde ich wieder hängen bleiben?“`,
-      `Zeigt, dass genau eine Etappe – die mit ${a.problemThema} – bisher jeden Versuch kippen ließ, nicht mangelnde Disziplin.`,
-      `Wer diese eine kritische Etappe kennt, will sie nicht allein meistern – der Weg führt direkt zu ${a.angebotKurz}.`
-    ],
-    'ursachen-scanner': [
-      `Beantwortet die Frage, die sich ${a.subj} nach mehreren gescheiterten Versuchen stellt: „Liegt es an mir – oder mache ich etwas grundsätzlich falsch?“`,
-      `Zeigt an der eigenen Situation bei ${a.problemThemaAlt}, wie ${a.methodeLabel} konkret funktioniert – nicht nur als Beschreibung, sondern angewendet.`,
-      `Wer die eigene Methode einmal live erlebt hat, will keine generische Alternative mehr – der Weg führt direkt zu ${a.angebotKurz}.`
-    ],
-    'bereit-check': [
-      `Beantwortet die Frage, die sich ${a.subj} vor jeder Entscheidung insgeheim stellt: „Bin ich wirklich bereit dafür – oder rede ich mir das nur ein?“`,
-      `Zeigt eine ehrliche Passungs-Aussage statt eines weiteren Verkaufsarguments – das schafft Vertrauen, wo sonst Skepsis wäre.`,
-      `Bei starker Passung verschwindet die letzte Zögerlichkeit, und der Weg zu ${a.angebotKurz} wird zur logischen Konsequenz.`
-    ]
-  };
-  return pool[idea.id] || [];
 }
 
 /* ---------------------------------------------------------------------- *
@@ -901,12 +884,6 @@ function renderIdeaCard(idea) {
     <span class="top-stars">★★★★★</span>
     <div class="top-badge">🏆 MEINE TOP-EMPFEHLUNG</div>` : '';
 
-  const winBox = idea.isTop ? `
-    <div class="win-reasons">
-      <h4>Warum diese Idee gewinnt</h4>
-      <ul>${idea.winReasons.map((r) => `<li>${r}</li>`).join('')}</ul>
-    </div>` : '';
-
   const [ioIn, ioOut] = idea.ioLine.split('→').map((s) => s.trim());
 
   return `
@@ -915,7 +892,6 @@ function renderIdeaCard(idea) {
     <span class="idea-category">${idea.category}</span>
     <h3 class="idea-name"><span class="idea-rank">#${idea.rank}:</span> ${idea.name}</h3>
     <p class="idea-hook">${idea.subline}</p>
-    ${winBox}
     <p class="io-line-label">Eingabe → Ergebnis</p>
     <p class="io-line"><span>${ioIn}</span><span class="io-arrow">→</span><span>${ioOut}</span></p>
     <p class="mini-preview"><strong>Beispiel-Ergebnis:</strong> ${idea.miniPreview}</p>
@@ -923,7 +899,6 @@ function renderIdeaCard(idea) {
       <h4>Warum stark</h4>
       <ul>${idea.whyStrong.map((r) => `<li>${r}</li>`).join('')}</ul>
     </div>
-    <p class="umsetzung-line">Umsetzung: <strong>${idea.umsetzung.label}</strong> · Erste Version in ${idea.umsetzung.time} baubar</p>
     <div class="potential-row">
       <div class="potential-stat is-gold">
         <span class="potential-label">Gesamt-Potenzial</span>
@@ -941,15 +916,29 @@ function renderIdeaCard(idea) {
       <button class="btn btn-primary" type="button" data-open-prompt>Bau-Prompt für Claude Code anzeigen</button>
     </div>
     <div class="idea-details" data-details>
-      <dl class="idea-fields">
-        <div class="idea-field"><dt>${idea.wowLabel}</dt><dd>${idea.wowMoment}</dd></div>
-        <div class="idea-field"><dt>${idea.nextLabel}</dt><dd>${idea.whatNext}</dd></div>
-        <div class="idea-field"><dt>Verkaufslogik</dt><dd>${idea.salesLine}</dd></div>
-        <div class="idea-field"><dt>Was dieses Tool anders macht</dt><dd>${idea.different}</dd></div>
-        <div class="idea-field"><dt>Warum zur Expertise passend</dt><dd>${idea.expertiseFit}</dd></div>
-      </dl>
-      <p class="detail-scores-label">Detail-Bewertung</p>
-      ${renderScoreGrid(idea.scores)}
+      <div class="detail-cluster">
+        <p class="detail-cluster-title">Aha</p>
+        <dl class="idea-fields">
+          <div class="idea-field"><dt>${idea.wowLabel}</dt><dd>${idea.wowMoment}</dd></div>
+        </dl>
+      </div>
+      <div class="detail-cluster">
+        <p class="detail-cluster-title">Sog</p>
+        <dl class="idea-fields">
+          <div class="idea-field"><dt>${idea.nextLabel}</dt><dd>${idea.whatNext}</dd></div>
+          <div class="idea-field"><dt>Warum dieses Tool Kauf-Sog erzeugt</dt><dd><ul class="kaufsog-list">${idea.kaufsog.map((r) => `<li>${r}</li>`).join('')}</ul></dd></div>
+        </dl>
+      </div>
+      <div class="detail-cluster">
+        <p class="detail-cluster-title">Strategie</p>
+        <dl class="idea-fields">
+          <div class="idea-field"><dt>Verkaufslogik</dt><dd>${idea.salesLine}</dd></div>
+          <div class="idea-field"><dt>Was dieses Tool anders macht</dt><dd>${idea.different}</dd></div>
+          <div class="idea-field"><dt>Warum es zu Ihrer Expertise passt</dt><dd>${idea.expertiseFit}</dd></div>
+        </dl>
+        <p class="detail-scores-label">Detail-Bewertung</p>
+        ${renderScoreGrid(idea.scores)}
+      </div>
     </div>
   </article>`;
 }
